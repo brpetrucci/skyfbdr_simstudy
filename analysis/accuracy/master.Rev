@@ -1,0 +1,88 @@
+###
+# Master template for accuracy skyline FBDR sim study
+
+# slurm script runs ref script to get all the details
+# dir is the name of the directory within simulation/accuracy/
+# n_lambda, n_mu, and n_psi are the numbers of each rates
+# model is which model we're in, unc is whether there's uncertainty, 
+# and ext_singles is whether there are extant singletons
+
+# read ranges
+taxa <- readTaxonData("simulation/accuracy/" + dir + "/ranges/taxa_" + rep + ".tsv")
+
+# if model is 1 or 3, there are fossil counts
+if (model == 1 | model == 3) {
+  # read fossil counts data
+  k <- readFossilCountsFile("simulation/accuracy/" + dir + "/fossil_counts/k_" + rep + ".tsv",  header = true, taxa = taxa)
+} 
+
+# read time intervals
+timeline <- readDataDelimitedFile("simulation/accuracy/" + dir + "/times.tsv")[1]
+
+# start moves vector
+moves = VectorMoves()
+
+# set lambdas
+for (i in 1:n_lambda) {
+  lambda[i] ~ dnLognormal(-2, 0.5)
+
+  moves.append( mvScale(lambda[i], lambda = 0.01, weight = 3.0) )
+  moves.append( mvScale(lambda[i], lambda = 0.1, weight = 3.0) )
+  moves.append( mvScale(lambda[i], lambda = 1, weight = 3.0) )
+}
+
+# set mus
+for (i in 1:n_mu) {
+  mu[i] ~ dnLognormal(-2, 0.5)
+  
+  moves.append( mvScale(mu[i], lambda = 0.01, weight = 3.0) )
+  moves.append( mvScale(mu[i], lambda = 0.1, weight = 3.0) )
+  moves.append( mvScale(mu[i], lambda = 1, weight = 3.0) )
+}
+
+# set psis
+for (i in 1:n_psi) {
+  psi[i] ~ dnExp(1)
+ 
+  moves.append( mvScale(psi[i], lambda = 0.01, weight = 3.0) )
+  moves.append( mvScale(psi[i], lambda = 0.1, weight = 3.0) )
+  moves.append( mvScale(psi[i], lambda = 1, weight = 3.0) )
+}
+
+# set rho based on ext_singles
+rho <- ifelse(ext_singles, 1, 0) 
+
+# set binary based on model
+if (model == 3) binary <- TRUE else binary <- FALSE
+
+# define FBDR matrix based on model
+if (model == 2) {
+  bd ~ dnFBDRMatrix(taxa = taxa, lambda = lambda, mu = mu, psi = psi, rho = rho, timeline = timeline, condition = "time")
+} else {
+  bd ~ dnFBDRMatrix(taxa = taxa, k = k, lambda = lambda, mu = mu, psi = psi, rho = rho, timeline = timeline, condition = "time", binary = binary)
+}
+
+moves.append( mvMatrixElementScale(bd, lambda = 0.01, weight=taxa.size()/10))
+moves.append( mvMatrixElementScale(bd, lambda = 0.1, weight=taxa.size()/10))
+moves.append( mvMatrixElementScale(bd, lambda = 1, weight=taxa.size()/10))
+
+moves.append( mvMatrixElementSlide(bd, delta = 0.01, weight=taxa.size()/10))
+moves.append( mvMatrixElementSlide(bd, delta = 0.1, weight=taxa.size()/10))
+moves.append( mvMatrixElementSlide(bd, delta = 1, weight=taxa.size()/10))
+
+mymodel = model(bd)
+
+monitors = VectorMonitors()
+
+# Create a vector of monitors #
+monitors.append( mnModel(filename="output/accuracy/" + dir + "skyfbdr_" + rep + ".log", printgen=10000) )
+monitors.append( mnScreen(printgen = 1000000) )
+
+# Initialize the MCMC object #
+mymcmc = mcmc(mymodel, monitors, moves)
+
+# Run the MCMC #
+mymcmc.run(generations=25000000)
+
+# Quit RevBayes #
+q()

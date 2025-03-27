@@ -1,0 +1,8 @@
+dir <- pLD2_20
+n_lambda <- 1
+n_mu <- 1
+n_psi <- 2
+age <- 20
+model <- 3
+unc <- FALSE
+ext_singles <- FALSE

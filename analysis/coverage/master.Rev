@@ -1,0 +1,66 @@
+###
+# Master template for coverage skyline FBDR sim study
+
+# read ranges
+taxa <- readTaxonData("simulation/coverage/ranges/taxa_" + rep + ".tsv")
+
+k <- readFossilCountsFile("simulation/coverage/fossil_counts/k_" + rep + ".tsv",  header = true, taxa = taxa)
+
+# read time intervals
+timeline <- readDataDelimitedFile("simulation/coverage/times/times_" + rep + ".tsv")[1]
+
+# start moves vector
+moves = VectorMoves()
+
+# set lambdas
+for (i in 1:(timeline.size() + 1)) {
+  lambda[i] ~ dnLognormal(-2, 0.5)
+
+  moves.append( mvScale(lambda[i], lambda = 0.01, weight = 3.0) )
+  moves.append( mvScale(lambda[i], lambda = 0.1, weight = 3.0) )
+  moves.append( mvScale(lambda[i], lambda = 1, weight = 3.0) )
+
+  mu[i] ~ dnLognormal(-2, 0.5)
+  
+  moves.append( mvScale(mu[i], lambda = 0.01, weight = 3.0) )
+  moves.append( mvScale(mu[i], lambda = 0.1, weight = 3.0) )
+  moves.append( mvScale(mu[i], lambda = 1, weight = 3.0) )
+
+  psi[i] ~ dnExp(1)
+ 
+  moves.append( mvScale(psi[i], lambda = 0.01, weight = 3.0) )
+  moves.append( mvScale(psi[i], lambda = 0.1, weight = 3.0) )
+  moves.append( mvScale(psi[i], lambda = 1, weight = 3.0) )
+}
+
+# set rho based on ext_singles
+rho <- 0 
+
+
+# define FBDR matrix
+bd ~ dnFBDRMatrix(taxa = taxa, k = k, lambda = lambda, mu = mu, psi = psi, rho = rho, timeline = timeline, condition = "time", binary = true)
+
+moves.append( mvMatrixElementScale(bd, lambda = 0.01, weight=taxa.size()/10))
+moves.append( mvMatrixElementScale(bd, lambda = 0.1, weight=taxa.size()/10))
+moves.append( mvMatrixElementScale(bd, lambda = 1, weight=taxa.size()/10))
+
+moves.append( mvMatrixElementSlide(bd, delta = 0.01, weight=taxa.size()/10))
+moves.append( mvMatrixElementSlide(bd, delta = 0.1, weight=taxa.size()/10))
+moves.append( mvMatrixElementSlide(bd, delta = 1, weight=taxa.size()/10))
+
+mymodel = model(bd)
+
+monitors = VectorMonitors()
+
+# Create a vector of monitors #
+monitors.append( mnModel(filename="output/coverage/skyfbdr_" + rep + ".log", printgen=10000) )
+monitors.append( mnScreen(printgen = 100000) )
+
+# Initialize the MCMC object #
+mymcmc = mcmc(mymodel, monitors, moves)
+
+# Run the MCMC #
+mymcmc.run(generations=5000000)
+
+# Quit RevBayes #
+q()

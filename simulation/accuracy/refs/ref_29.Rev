@@ -1,0 +1,8 @@
+dir <- mLD3_20
+n_lambda <- 1
+n_mu <- 3
+n_psi <- 1
+age <- 20
+model <- 3
+unc <- FALSE
+ext_singles <- FALSE

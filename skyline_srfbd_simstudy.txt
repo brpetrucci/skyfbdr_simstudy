@@ -1,0 +1,42 @@
+Simulation study plan: Skyline SRFBD
+
+- 2 simulation sets: coverage (drawing parameters from the prior) and accuracy (keeping parameters fixed)
+- Each simulated dataset will be saved (and therefore analyzed) with model 3, unless specified
+
+- Coverage simulations (5-10 species, 1000 reps/number of stages):
+  - Same as current preliminary validation simulations, except for adding sets with 2-5 intervals (just spaced equally considering the drawn origin age)
+  - Origin, and each lambda, mu, psi (one per stage) drawn from prior distributions
+
+- Accuracy simulations (100 reps/scenario):
+  - 1-3 intervals
+  - Origin at 10, 20, 30my
+  - Rate variations: (all other rates kept constant; constant rates set as having only one stage in analysis)
+    - lambda:
+      - 0.2 (constant)
+      - (0.1, 0.2, 0.4) or (0.1, 0.4) (linear increasing)
+      - (0.4, 0.2, 0.1) or (0.4, 0.1) (linear decreasing)
+      - (0.1, 0.4, 0.1) (up triangle)
+      - (0.4, 0.1, 0.4) (down triangle)
+    - mu:
+      - 0.1 (constant)
+      - (0.05, 0.1, 0.2) or (0.05, 0.2) (linear increasing)
+      - (0.2, 0.1, 0.05) or (0.2, 0.05) (linear decreasing)
+      - (0.05, 0.2, 0.05) (up triangle)
+      - (0.2, 0.05, 0.2) (down triangle)
+    - psi: same as lambda
+  - Extra sims to test specific, more complicated scenarios (in all of these, we assume 30my origin, 3 intervals, and the rate variation regime is the one with highest diversification)
+    - Multiple rates varying at the same time, with lambda-mu-psi having 1-2-3, 2-3-1, and 3-1-2 stages respectively.
+    - lambda varies, mu and psi left constant, but analysis set up with them free to vary (to test whether model can detect constant rates even when model allows them to vary)
+    - lambda and mu vary, psi left constant, but analysis set up with mu constant (to test how model misspecification biases estimates)
+    - All rates vary, with and without fossil age uncertainty (models 1 and 2)
+    - All rates vary, with and without extant singletons (rho = 1)
+    - All rates vary, analyzed assuming 5 stages instead of 3
+    - All rates vary, analyzed assuming 2 stages instead of 3
+
+- To gauge bounds for the number of species and percentage sampled for these specifications, I ran 1000 sims each for max (lambda = c(0.4, 0.1, 0.4), mu = 0.1) and min (lambda = 0.2, mu = c(0.2, 0.05, 0.2)) diversification, and ran fossil sampling using max and min rate (0.4 and 0.1), for 10 and 30my.b.  I rejected simulations with less than 10 total species (extant or extinct) by the end. All the values below are averages from 1000 simulations
+  - 10my, min div: 13 sp generated, 3-8 (0.25-0.58) sampled
+  - 10my, max div: 42 sp generated, 8-21 (0.2-0.5) sampled
+  - 30my, min div: 45 sp generated, 15-30 (0.32-0.66) sampled
+  - 30my, max div: 822 sp generated, 173-419 (0.21-0.52) sampled
+
+- Total number of simulation scenarios:  - Coverage: 5 (5000 reps, fast)  - Accuracy:    - Rate variation: 1 (1 stage) + 2 (2 stages) + 4 (3 stages) = 7/rate * 3 rates = 21 - 2 repeats (CCC) = 19    - Origin values: 3    - Extra sims (only for 3 stages, 30my): 3 (concurrent changes) + 1 (constant set to vary) + 1 (vary set to constant) + 4 (age uncertainty) + 1 (rho = 0) + 1 (rho = 1) + 2 (stage misspecification) = 13    - Total: 19 * 3 + 13 = 70 (7000 reps)
