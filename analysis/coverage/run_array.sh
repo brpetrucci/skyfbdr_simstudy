@@ -1,6 +1,6 @@
 #!/bin/sh
 
-for i in `seq 566 566`
+for i in `seq 1 1000`
 do
 printf "rep <- " >> analysis/coverage/aux_$i.Rev
 echo $i >> analysis/coverage/aux_$i.Rev
