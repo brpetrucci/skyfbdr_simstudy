@@ -2,8 +2,8 @@
 # Master template for accuracy skyline FBDR sim study
 
 # slurm script runs ref script to get all the details
-# dir is the name of the directory within simulation/accuracy/
-# n_lambda, n_mu, and n_psi are the numbers of each rates
+# dir is the name of the directory within simu_stclation/accuracy/
+# n_lambda_stc, n_mu_stc, and n_psi_stc are the numbers of each rates
 # model is which model we're in, unc is whether there's uncertainty, 
 # and ext_singles is whether there are extant singletons
 
@@ -22,32 +22,37 @@ timeline <- readDataDelimitedFile("simulation/accuracy/" + dir + "/times.tsv")[1
 # start moves vector
 moves = VectorMoves()
 
-# set lambdas
+# set lambda_stcs
 for (i in 1:n_lambda) {
-  lambda[i] ~ dnLognormal(-2, 0.5)
+  lambda_stc[i] ~ dnLognormal(-2, 0.5)
 
-  moves.append( mvScale(lambda[i], lambda = 0.01, weight = 3.0) )
-  moves.append( mvScale(lambda[i], lambda = 0.1, weight = 3.0) )
-  moves.append( mvScale(lambda[i], lambda = 1, weight = 3.0) )
+  moves.append( mvScale(lambda_stc[i], lambda = 0.01, weight = 3.0) )
+  moves.append( mvScale(lambda_stc[i], lambda = 0.1, weight = 3.0) )
+  moves.append( mvScale(lambda_stc[i], lambda = 1, weight = 3.0) )
 }
 
-# set mus
+# set mu_stcs
 for (i in 1:n_mu) {
-  mu[i] ~ dnLognormal(-2, 0.5)
+  mu_stc[i] ~ dnLognormal(-2, 0.5)
   
-  moves.append( mvScale(mu[i], lambda = 0.01, weight = 3.0) )
-  moves.append( mvScale(mu[i], lambda = 0.1, weight = 3.0) )
-  moves.append( mvScale(mu[i], lambda = 1, weight = 3.0) )
+  moves.append( mvScale(mu_stc[i], lambda = 0.01, weight = 3.0) )
+  moves.append( mvScale(mu_stc[i], lambda = 0.1, weight = 3.0) )
+  moves.append( mvScale(mu_stc[i], lambda = 1, weight = 3.0) )
 }
 
-# set psis
+# set psi_stcs
 for (i in 1:n_psi) {
-  psi[i] ~ dnExp(1)
+  psi_stc[i] ~ dnExp(1)
  
-  moves.append( mvScale(psi[i], lambda = 0.01, weight = 3.0) )
-  moves.append( mvScale(psi[i], lambda = 0.1, weight = 3.0) )
-  moves.append( mvScale(psi[i], lambda = 1, weight = 3.0) )
+  moves.append( mvScale(psi_stc[i], lambda = 0.01, weight = 3.0) )
+  moves.append( mvScale(psi_stc[i], lambda = 0.1, weight = 3.0) )
+  moves.append( mvScale(psi_stc[i], lambda = 1, weight = 3.0) )
 }
+
+# correct lambda, mu, and psi sizes
+if (lambda_stc.size() == 1) lambda := rep(lambda_stc[1], timeline.size() + 1) else lambda := lambda_stc
+if (mu_stc.size() == 1) mu := rep(mu_stc[1], timeline.size() + 1) else mu := mu_stc
+if (psi_stc.size() == 1) psi := rep(psi_stc[1], timeline.size() + 1) else psi := psi_stc
 
 # set rho based on ext_singles
 rho <- ifelse(ext_singles, 1, 0) 
@@ -75,7 +80,7 @@ mymodel = model(bd)
 monitors = VectorMonitors()
 
 # Create a vector of monitors #
-monitors.append( mnModel(filename="output/accuracy/" + dir + "skyfbdr_" + rep + ".log", printgen=10000) )
+monitors.append( mnModel(filename="output/accuracy/" + dir + "/skyfbdr_" + rep + ".log", printgen=10000) )
 monitors.append( mnScreen(printgen = 1000000) )
 
 # Initialize the MCMC object #
