@@ -1,0 +1,8 @@
+dir <- "m1_no_unc"
+n_lambda <- 3
+n_mu <- 3
+n_psi <- 3
+age <- 30
+model <- 1
+unc <- FALSE
+ext_singles <- FALSE

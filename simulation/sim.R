@@ -17,6 +17,9 @@ load_all()
 # ape
 library(ape)
 
+# ggplot
+library(ggplot2)
+
 ###
 # set parameters for accuracy simulations
 
@@ -57,18 +60,17 @@ key <- cbind(rbind(key, key, key),
              age = c(rep(10, 19), rep(20, 19), rep(30, 19)))
 
 # add extra sims
-key_extra <- cbind(rbind(c("C", "LD2", "DT"),
-                         c("LI2", "UT", "C"),
-                         c("DT", "C", "LI2"),
-                         c("DT", "C", "C"),
+key_extra <- cbind(rbind(c("DT", "C", "C"),
                          c("DT", "UT", "C"),
                          c("DT", "UT", "DT"),
                          c("DT", "UT", "DT"),
                          c("DT", "UT", "DT"),
                          c("DT", "UT", "DT"),
                          c("DT", "UT", "DT"),
+                         c("DT", "UT", "DT"),
+                         c("DT", "UT", "DT"),
                          c("DT", "UT", "DT")),
-                   rep(30, 11))
+                   rep(30, 10))
 key_extra <- as.data.frame(key_extra)
 colnames(key_extra) <- colnames(key)
 key <- rbind(key, as.data.frame(key_extra))
@@ -79,16 +81,17 @@ key$names <- c(paste0(rep(c("base", "lLI3", "lLI2",
                "mLI3", "mLI2", "mLD3", "mLD2", "mUT", "mDT",
                "pLI3", "pLI2", "pLD3", "pLD2", "pUT", "pDT")), 
                "_", c(rep(10, 19), rep(20, 19), rep(30, 19))),
-               "mult_stages123", "mult_stages231", "mult_stages312",
                "free", "not_free",
+               "stages_5", "stages_2",
                "no_extant_singles", "yes_extant_singles",
                "m1_no_unc", "m1_unc", "m2_no_unc", "m2_unc")
 key <- key[, c(5, 1:4)]
 
 # add booleans to make sim code easier
-key$model <- c(rep(3, 64), 1, 1, 2, 2)
-key$unc <- c(rep(FALSE, 65), TRUE, FALSE, TRUE)
-key$extant_singles <- c(rep(FALSE, 64), TRUE, rep(FALSE, 3))
+key$model <- c(rep(3, 63), 1, 1, 2, 2)
+key$unc <- c(rep(FALSE, 64), TRUE, FALSE, TRUE)
+key$extant_singles <- c(rep(FALSE, 62), TRUE, rep(FALSE, 4))
+key$diff_bins <- c(rep(FALSE, 59), 5, 2, rep(FALSE, 6))
 
 ###
 # write minor auxiliary functions
@@ -267,31 +270,6 @@ simulate_rep <- function(rates, age, shifts, bins,
       colnames(ranges) <- c("taxon", "max_age", "min_age")
     }
     
-    # if extant_singletons is true, add extant singletons, if any, to ranges
-    if (extant_singletons) {
-      # find which taxa are extant
-      ext <- paste0("t", which(sim$EXTANT))
-      
-      # find which are singletons
-      ext_singles <- ext[!(ext %in% fossils$Species)]
-      
-      # add them to ranges with 0 for every age, if there are any
-      if (length(ext_singles) > 0) {
-        # make a zeros data frame
-        zeros_df <- data.frame(matrix(0, nrow = length(ext_singles),
-                                      ncol = ncol(ranges) - 1))
-        
-        # add taxa names to it
-        ext_singles_df <- cbind(ext_singles, zeros_df)
-        
-        # name it
-        colnames(ext_singles_df) <- colnames(ranges)
-        
-        # add new columns to range
-        ranges <- rbind(ranges, ext_singles_df)
-      }
-    }
-    
     # get the number of species sampled in each interval
     k_sampled <- colSums(k_nums)
     
@@ -325,14 +303,42 @@ simulate_rep <- function(rates, age, shifts, bins,
     }
   }
   
+  # record true values for cov sims
+  true_vals <- c(lambda, mu, psi, age)
+  
+  # if extant_singletons is true, add extant singletons, if any, to ranges
+  if (extant_singletons) {
+    # find which taxa are extant
+    ext <- paste0("t", which(sim$EXTANT))
+    
+    # find which are singletons
+    ext_singles <- ext[!(ext %in% fossils$Species)]
+    
+    # add them to ranges with 0 for every age, if there are any
+    if (length(ext_singles) > 0) {
+      # make a zeros data frame
+      zeros_df <- data.frame(matrix(0, nrow = length(ext_singles),
+                                    ncol = ncol(ranges) - 1))
+      
+      # add taxa names to it
+      ext_singles_df <- cbind(ext_singles, zeros_df)
+      
+      # name it
+      colnames(ext_singles_df) <- colnames(ranges)
+      
+      # add new columns to range
+      ranges <- rbind(ranges, ext_singles_df)
+    }
+  }
+  
   # return sim, ranges and k
-  return(list(SIM = sim, RANGES = ranges, K = k))
+  return(list(SIM = sim, RANGES = ranges, K = k, TV = true_vals, BINS = bins))
 }
 
 # simulate one set
 simulate_set <- function(n_key, reps, rates, age, base_dir,
                          model = 3, unc = FALSE, extant_singletons = FALSE,
-                         coverage = FALSE) {
+                         diff_bins = 0, coverage = FALSE) {
   # if it is not a coverage simulation set, can prepare rates as normal
   if (!coverage) {
     # create shifts list
@@ -355,6 +361,12 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
     # get bins to bin fossil data on
     bins <- seq(0, age, age/3)
     if (max(n_stages) == 2) bins <- seq(0, age, age/2)
+    
+    # if we're on the case where we need different bins
+    if (diff_bins) {
+      # set those bins
+      bins <- seq(0, age, age/diff_bins)
+    }
   }
   
   # create vectors for number of species, sampled, and percentage sampled
@@ -371,6 +383,9 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
   
   # save seeds
   save(seeds, file = paste0(base_dir, "seeds.RData"))
+  
+  # start true values data frame if coverage
+  true_vals <- data.frame(matrix(nrow = 0, ncol = 4))
   
   # iterate through reps
   for (rep in 1:reps) {
@@ -401,12 +416,6 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
       
       # bins
       bins <- c(shifts[[1]], age)
-      
-      # write timeline
-      smart_dir_create(paste0(base_dir, "/times"))
-      write.table(t(bins[-c(1, length(bins))]), 
-                  paste0(base_dir, "/times/times_", rep, ".tsv"),
-                  col.names = FALSE, row.names = FALSE, quote = FALSE, sep = "\t")
     }
     
     # run sim
@@ -414,6 +423,21 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
                             model = model, unc = unc, 
                             extant_singletons = extant_singletons,
                             coverage = coverage)
+    
+    # if coverage, need to same timeline and add to true_vals
+    if (coverage) {
+      # get final bins
+      bins <- sim_rep$BINS
+      
+      # write timeline
+      smart_dir_create(paste0(base_dir, "/times"))
+      write.table(t(bins[-c(1, length(bins))]), 
+                  paste0(base_dir, "/times/times_", rep, ".tsv"),
+                  col.names = FALSE, row.names = FALSE, quote = FALSE, sep = "\t")
+      
+      # add true values to true_vals
+      true_vals <- rbind(true_vals, sim_rep$TV)
+    }
     
     # get sim and samples
     sim <- sim_rep$SIM
@@ -423,7 +447,7 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
     # calculate numbers of interest
     n_sp <- c(n_sp, length(sim$TS))
     if (extant_singletons) {
-      ranges_fs <- ranges[ranges$fad != 0 | ranges$lad != 0, ]
+      ranges_fs <- ranges[ranges$max_age != 0 | ranges$min_age != 0, ]
       n_sampled <- c(n_sampled, length(unique(ranges_fs$taxon)))
     } else {
       n_sampled <- c(n_sampled, length(unique(ranges$taxon)))
@@ -454,6 +478,16 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
     write.table(t(bins[-c(1, length(bins))]), 
                 paste0(base_dir, "times.tsv"),
                 col.names = FALSE, row.names = FALSE, quote = FALSE, sep = "\t")
+  } else {
+    # if it is, write true values data frame
+    
+    # name columns
+    colnames(true_vals) <- c("lambda", "mu", "psi", "age")
+    
+    # save true_vals
+    write.table(true_vals, 
+                paste0(base_dir, "/true_vals.tsv"),
+                col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
   }
   
   # make numbers into a data frame
@@ -490,6 +524,7 @@ simulate_acc <- function(key, reps, lambda, mu, psi, reps_dir) {
     model_set <- as.numeric(key_set$model)
     unc_set <- key_set$unc
     extant_singletons_set <- key_set$extant_singles
+    diff_bins_set <- key_set$diff_bins
     
     # create base directory
     base_dir <- paste0(reps_dir, key_set$names, "/")
@@ -497,7 +532,8 @@ simulate_acc <- function(key, reps, lambda, mu, psi, reps_dir) {
     
     # run simulation set
     nums <- simulate_set(n_key, reps, rates_set, age_set, base_dir,
-                         model_set, unc_set, extant_singletons_set)
+                         model_set, unc_set, extant_singletons_set,
+                         diff_bins_set, coverage = FALSE)
 
     # add to data frames
     min_nums <- rbind(min_nums, colMins(nums))
@@ -508,7 +544,7 @@ simulate_acc <- function(key, reps, lambda, mu, psi, reps_dir) {
     refs_lines <- vector("character", 8)
     
     # add directory name
-    refs_lines[1] <- paste0("dir <- ", key_set$names)
+    refs_lines[1] <- paste0('dir <- "', key_set$names, '"')
     
     # check number of rates to run analysis with
     n_lambda <- ifelse(key_set$lambda == "C", 1,
@@ -524,6 +560,14 @@ simulate_acc <- function(key, reps, lambda, mu, psi, reps_dir) {
     }
     if (key_set$names == "not_free") {
       n_mu <- 1
+    }
+    
+    # correct it if we're on the stages_5 or stages_2 sims
+    if (key_set$names == "stages_5") {
+      n_lambda <- n_mu <- n_psi <- 5
+    }
+    if (key_set$names == "stages_2") {
+      n_lambda <- n_mu <- n_psi <- 2
     }
     
     # add lines for lambda, mu and psi number
@@ -557,7 +601,7 @@ simulate_acc <- function(key, reps, lambda, mu, psi, reps_dir) {
 simulate_cov <- function(reps, reps_dir) {
   # run simulation set
   nums <- simulate_set("cov", reps, NULL, NULL, reps_dir,
-                       3, FALSE, FALSE, coverage = TRUE)
+                       3, FALSE, FALSE, 0, coverage = TRUE)
   
   # make nums a data frame
   nums <- as.data.frame(nums)
@@ -583,6 +627,10 @@ reps <- 1000
 # run sims
 nums_cov <- simulate_cov(reps, cov_reps_dir)
 
+# save nums_cov
+write.table(nums_cov, paste0("cov_reps_dir", "nums_cov.tsv"),
+            row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+
 ###
 # run simulations - accuracy
 
@@ -591,8 +639,49 @@ acc_reps_dir <- paste0("/Users/petrucci/Documents/research/skyfbdr_simstudy/",
                        "simulation/accuracy/")
 smart_dir_create(acc_reps_dir)
 
+# save key
+write.table(key, 
+            paste0(acc_reps_dir, "key.tsv"),
+            col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
+
 # set number of reps
 reps <- 100
 
 # run sims
 nums_acc <- simulate_acc(key, reps, lambda, mu, psi, acc_reps_dir)
+
+# save nums_acc
+write.table(nums_acc$MEANS, paste0("acc_reps_dir", "means_acc.tsv"),
+            row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+write.table(nums_acc$MAXES, paste0("acc_reps_dir", "maxes_acc.tsv"),
+            row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+write.table(nums_acc$MINS, paste0("acc_reps_dir", "mins_acc.tsv"),
+            row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+
+# get n_sampled data frames
+n_sampled <- data.frame(mean = nums_acc$MEANS$n_sampled, 
+                        min = nums_acc$MINS$n_sampled,
+                        max = nums_acc$MAXES$n_sampled,
+                        age = key$age,
+                        name = key$names,
+                        lambda = key$lambda)
+n_sampled_10 <- n_sampled[n_sampled$age == 10, ]
+n_sampled_20 <- n_sampled[n_sampled$age == 20, ]
+n_sampled_30 <- n_sampled[n_sampled$age == 30, ]
+
+# plot each n_sampled
+ggplot(n_sampled_10, aes(x = 1:nrow(n_sampled_10), y = mean,
+                         col = lambda)) +
+  geom_point() +
+  geom_segment(aes(x = 1:nrow(n_sampled_10), y = min, yend = max)) +
+  theme_bw()
+ggplot(n_sampled_20, aes(x = 1:nrow(n_sampled_20), y = mean,
+                         col = lambda)) +
+  geom_point() +
+  geom_segment(aes(x = 1:nrow(n_sampled_20), y = min, yend = max)) +
+  theme_bw()
+ggplot(n_sampled_30, aes(x = 1:nrow(n_sampled_30), y = mean,
+                         col = lambda)) +
+  geom_point() +
+  geom_segment(aes(x = 1:nrow(n_sampled_30), y = min, yend = max)) +
+  theme_bw()

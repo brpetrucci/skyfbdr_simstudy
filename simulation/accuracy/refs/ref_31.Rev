@@ -1,4 +1,4 @@
-dir <- mUT_20
+dir <- "mUT_20"
 n_lambda <- 1
 n_mu <- 3
 n_psi <- 1

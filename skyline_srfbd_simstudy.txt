@@ -25,7 +25,6 @@ Simulation study plan: Skyline SRFBD
       - (0.2, 0.05, 0.2) (down triangle)
     - psi: same as lambda
   - Extra sims to test specific, more complicated scenarios (in all of these, we assume 30my origin, 3 intervals, and the rate variation regime is the one with highest diversification)
-    - Multiple rates varying at the same time, with lambda-mu-psi having 1-2-3, 2-3-1, and 3-1-2 stages respectively.
     - lambda varies, mu and psi left constant, but analysis set up with them free to vary (to test whether model can detect constant rates even when model allows them to vary)
     - lambda and mu vary, psi left constant, but analysis set up with mu constant (to test how model misspecification biases estimates)
     - All rates vary, with and without fossil age uncertainty (models 1 and 2)

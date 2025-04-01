@@ -1,0 +1,8 @@
+dir <- "mLI2_30"
+n_lambda <- 1
+n_mu <- 2
+n_psi <- 1
+age <- 30
+model <- 3
+unc <- FALSE
+ext_singles <- FALSE

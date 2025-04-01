@@ -1,4 +1,4 @@
-dir <- mLD2_10
+dir <- "mLD2_10"
 n_lambda <- 1
 n_mu <- 2
 n_psi <- 1
