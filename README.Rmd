@@ -1,0 +1,68 @@
+---
+title: "README.Rmd"
+output: github_document
+date: "2025-04-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Skyline treeless FBD range simulation study
+
+This project aims to validate the treeless version of the skyline FBD range model (Stadler et al 2018, Warnock et al 2020). To do so, we simulated stratigraphic ranges using the R package paleobuddy (do Rosario Petrucci et al 2022), and applied FBD range to it using RevBayes (Hoehna et al 2016).
+
+### Simulation
+
+The simulation code can be found in `simulation/sim.R`. That includes both accuracy and coverage simulations. 
+
+For coverage simulations, we drew the model parameters (speciation rate, extinction rate, fossil-sampling rate, and origin time) from prior distributions (the same ones we use in the analysis code). This included 3 values for each rate, since this is a skyline model. Stages were divided evenly between the present (0) and the origin time. 1000 simulations were ran, with rejection sampling to throw out replicates where there were less than 5 or more than 20 species sampled (drawing new values from the prior each time). They were then saved as fossil counts (saved in `simulation/coverage/fossil_counts`, representing the `k` parameter in FBD range), ranges (in `simulation/coverage/ranges`), and stages (in `simulation/coverage/times`, note that 0 and the origin time are not included) files. Also saved in `simulation/coverage` are `seeds.RData`, keeping all the seeds randomly drawn to run the simulations, `sim_list.RData`, keeping all the BD simulations that generated the fossil records, and `true_vals.tsv`, listing the values taken from the prior to run the simulations.
+
+```{r, include=FALSE}
+# speciation
+lambda<- list(0.3, 
+              c(0.1, 0.2, 0.4),
+              c(0.1, 0.4),
+              c(0.4, 0.2, 0.1),
+              c(0.4, 0.1),
+              c(0.1, 0.4, 0.1),
+              c(0.4, 0.1, 0.4))
+
+# extinction
+mu <- list(0.1,
+           c(0.05, 0.1, 0.2),
+           c(0.05, 0.2),
+           c(0.2, 0.1, 0.05), 
+           c(0.05, 0.2),
+           c(0.05, 0.2, 0.05),
+           c(0.2, 0.05, 0.2))
+
+# fossil sampling
+psi <- lambda
+
+# name them
+names(lambda) <- names(mu) <- names(psi) <-
+  c("C", "LI3", "LI2", "LD3", "LD2", "UT", "DT")
+
+# read key
+key <- read.delim("/Users/petrucci/Documents/research/skyfbdr_simstudy/simulation/accuracy/key.tsv",
+                  sep = "\t")
+```
+
+For accuracy simulations, we selected a number of axes of variation to test the model's strengths and limitations. `lambda`, `mu` and `psi` might be constant (`"C"`), increase (`"LI3"` and `"LI2"`) or decrease (`"LD3"` and `"LD2"`) linearly, or vary as a "triangle", increasing (`"UT"`) or decreasing (`"DT"`) in the middle interval. The abbreviations in parentheses were used to identify how each rate varies, as seen in the key below. Age also varied, and every rate scenario was ran with `age = 10`, `20`, and `30`. Simulations were saved following sampling model 3, i.e. with presence-absence matrices describing the presence or absence of each species on each interval. Extant singletons (extant species for which no fossils were sampled) were excluded. These configurations form the bulk of the study, with 57 total simulation scenarios, each ran with 100 reps. We also ran some simulations diverging from these scenarios so as to explore different features of the model:
+
+* In scenario 58, `mu` and `psi` were set to have a constant rate, but will be analyzed in RevBayes with parameters for each stage. In this way, we will check whether the model can detect that there is no time-heterogeneity in rates.
+* In scenario 59, `mu` was set to vary (`"UT"`), but will be analyzed in RevBayes assuming constant `mu`. This will allow us to check how the model reacts to parameter misspecification.
+* In scenarios 60 and 61, all rates vary with 3 stages, but will be analyzed with parameters for 5 or 2 (respectively). We will then check how model estimates react to incorrect stage specification.
+* In scenario 63, all rates vary and we include extant singletons in the saved ranges. By comparing with scenario 62 (which has the same parameters, but does not save extant singletons), we will check how extant singletons change our estimates.
+* Finally, scenarios 64-67 will test the how the fossil data format impact analyses. Instead of saving fossil counts as presence-absence matrices, they are given to the model either as total fossil counts per interval (model 1), or not given at all (model 2, note that fossil counts were still saved). We also included scenarios to test whether uncertainty in models 1 and 2 impacts estimates, with ranges being saved with time bins as opposed to true values in that case.
+
+For a review of simulation scenarios, see the key below. The names column for the first 57 simulation is named as follows: a letter to indicate which rate varies (`l`, `m` or `p`), the mode of variation (e.g. `DT`), and underscore, and the age of the simulation (`10`, `20` or `30`). These will also be the names of the directories within `simulation/accuracy` where simulations are saved. The internal structure of those directories is the same as in the case of the coverage simulations. The key is saved under `simulation/accuracy/key.tsv`, and within the `simulation/accuracy/refs` directory, `Rev` files are saved to conveniently set parameters for the RevBayes analyses (following the column names of `key` closely).
+
+```{r}
+key
+```
+
+### Analysis
+
+`analysis/coverage` contains 
