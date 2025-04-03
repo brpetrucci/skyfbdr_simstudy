@@ -206,9 +206,12 @@ simulate_rep <- function(rates, age, shifts, bins,
       # get vector of occurrences for that species
       occs <- fossils$SampT[fossils$Species == sp]
       
+      # check if it is extant
+      ext_sp <- fossils$Extant[fossils$Species == sp][1]
+      
       # find fad and lad
       fad <- max(occs)
-      lad <- min(occs)
+      lad <- ifelse(ext_sp, 0, min(occs))
       
       # start a vector for k for this species
       k_sp <- c()
@@ -306,7 +309,7 @@ simulate_rep <- function(rates, age, shifts, bins,
   # record true values for cov sims
   true_vals <- c(lambda, mu, psi, age)
   
-  # if extant_singletons is true, add extant singletons, if any, to ranges
+  # if extant_singletons is true, add extant singletons, if any
   if (extant_singletons) {
     # find which taxa are extant
     ext <- paste0("t", which(sim$EXTANT))
@@ -316,18 +319,23 @@ simulate_rep <- function(rates, age, shifts, bins,
     
     # add them to ranges with 0 for every age, if there are any
     if (length(ext_singles) > 0) {
-      # make a zeros data frame
-      zeros_df <- data.frame(matrix(0, nrow = length(ext_singles),
-                                    ncol = ncol(ranges) - 1))
+      # make a zeros data frame for ranges and k
+      zeros_df_ranges <- data.frame(matrix(0, nrow = length(ext_singles),
+                                           ncol = ncol(ranges) - 1))
+      zeros_df_k <- data.frame(matrix(0, nrow = length(ext_singles),
+                                      ncol = ncol(k) - 1))
       
-      # add taxa names to it
-      ext_singles_df <- cbind(ext_singles, zeros_df)
+      # add taxa names to them
+      ext_singles_df_ranges <- cbind(ext_singles, zeros_df_ranges)
+      ext_singles_df_k <- cbind(ext_singles, zeros_df_k)
       
-      # name it
-      colnames(ext_singles_df) <- colnames(ranges)
+      # name them
+      colnames(ext_singles_df_ranges) <- colnames(ranges)
+      colnames(ext_singles_df_k) <- colnames(k)
       
-      # add new columns to range
-      ranges <- rbind(ranges, ext_singles_df)
+      # add new columns to data frames
+      ranges <- rbind(ranges, ext_singles_df_ranges)
+      k <- rbind(k, ext_singles_df_k)
     }
   }
   
@@ -616,20 +624,20 @@ simulate_cov <- function(reps, reps_dir) {
 ###
 # run simulations - coverage
 
-# create reps directory
-cov_reps_dir <- paste0("/Users/petrucci/Documents/research/skyfbdr_simstudy/",
-                       "simulation/coverage/")
-smart_dir_create(cov_reps_dir)
-
-# set number of reps
-reps <- 1000
-
-# run sims
-nums_cov <- simulate_cov(reps, cov_reps_dir)
-
-# save nums_cov
-write.table(nums_cov, paste0("cov_reps_dir", "nums_cov.tsv"),
-            row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+# # create reps directory
+# cov_reps_dir <- paste0("/Users/petrucci/Documents/research/skyfbdr_simstudy/",
+#                        "simulation/coverage/")
+# smart_dir_create(cov_reps_dir)
+# 
+# # set number of reps
+# reps <- 1000
+# 
+# # run sims
+# nums_cov <- simulate_cov(reps, cov_reps_dir)
+# 
+# # save nums_cov
+# write.table(nums_cov, paste0("cov_reps_dir", "nums_cov.tsv"),
+#             row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
 
 ###
 # run simulations - accuracy
@@ -685,3 +693,33 @@ ggplot(n_sampled_30, aes(x = 1:nrow(n_sampled_30), y = mean,
   geom_point() +
   geom_segment(aes(x = 1:nrow(n_sampled_30), y = min, yend = max)) +
   theme_bw()
+
+# ##
+# # plot time for each sim
+# 
+# # create times vector
+# times <- c()
+# 
+# # iterate through all model 3 analyses of 100 gens
+# for (i in 1:63) {
+#   # read times vector
+#   times_set <- read.table(paste0("/Users/petrucci/Documents/research/",
+#                                  "skyfbdr_simstudy/simulation/accuracy/time_", 
+#                                  i, ".tsv"))
+#   
+#   # get the total time for this sim set
+#   times_sum <- sum(times_set)
+# 
+#   # add it to times
+#   times <- c(times, times_sum)
+# }
+# 
+# # get the total times
+# times_total <- 10E6/100 * times / 60 / 60
+# 
+# # add it to n_sampled
+# n_sampled$time <- c(times_total, rep(NA, 4))
+# 
+# ggplot(n_sampled[-c(63:67), ], aes(y = time)) +
+#   geom_histogram() +
+#   theme_bw()

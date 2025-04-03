@@ -67,13 +67,13 @@ if (model == 2) {
   bd ~ dnFBDRMatrix(taxa = taxa, k = k, lambda = lambda, mu = mu, psi = psi, rho = rho, timeline = timeline, condition = "time", binary = binary)
 }
 
-moves.append( mvMatrixElementScale(bd, lambda = 0.01, weight=taxa.size()/10))
-moves.append( mvMatrixElementScale(bd, lambda = 0.1, weight=taxa.size()/10))
-moves.append( mvMatrixElementScale(bd, lambda = 1, weight=taxa.size()/10))
+moves.append( mvMatrixElementScale(bd, lambda = 0.01, weight=taxa.size()/100))
+moves.append( mvMatrixElementScale(bd, lambda = 0.1, weight=taxa.size()/100))
+moves.append( mvMatrixElementScale(bd, lambda = 1, weight=taxa.size()/100))
 
-moves.append( mvMatrixElementSlide(bd, delta = 0.01, weight=taxa.size()/10))
-moves.append( mvMatrixElementSlide(bd, delta = 0.1, weight=taxa.size()/10))
-moves.append( mvMatrixElementSlide(bd, delta = 1, weight=taxa.size()/10))
+moves.append( mvMatrixElementSlide(bd, delta = 0.01, weight=taxa.size()/100))
+moves.append( mvMatrixElementSlide(bd, delta = 0.1, weight=taxa.size()/100))
+moves.append( mvMatrixElementSlide(bd, delta = 1, weight=taxa.size()/100))
 
 mymodel = model(bd)
 
@@ -87,7 +87,7 @@ monitors.append( mnScreen(printgen = 1000000) )
 mymcmc = mcmc(mymodel, monitors, moves)
 
 # Run the MCMC #
-mymcmc.run(generations=25000000)
+mymcmc.run(generations=100)
 
 # Quit RevBayes #
 q()
