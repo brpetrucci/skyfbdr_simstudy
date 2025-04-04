@@ -67,13 +67,28 @@ if (model == 2) {
   bd ~ dnFBDRMatrix(taxa = taxa, k = k, lambda = lambda, mu = mu, psi = psi, rho = rho, timeline = timeline, condition = "time", binary = binary)
 }
 
-moves.append( mvMatrixElementScale(bd, lambda = 0.01, weight=taxa.size()/100))
-moves.append( mvMatrixElementScale(bd, lambda = 0.1, weight=taxa.size()/100))
-moves.append( mvMatrixElementScale(bd, lambda = 1, weight=taxa.size()/100))
+# check if this is extant_singletons
+if (ext_singles) {
+  # get fossil taxa only for moves
+  fcount <- 1
+  for (i in 1:taxa.size()) {
+    if (taxa[i].getMinAge() == 0 && taxa[i].getMaxAge() == 0) {
+      fossil_taxa[fcount] <- taxa[i]
 
-moves.append( mvMatrixElementSlide(bd, delta = 0.01, weight=taxa.size()/100))
-moves.append( mvMatrixElementSlide(bd, delta = 0.1, weight=taxa.size()/100))
-moves.append( mvMatrixElementSlide(bd, delta = 1, weight=taxa.size()/100))
+      fcount <- fcount + 1
+    }
+  }
+} else {
+  fossil_taxa <- taxa
+} 
+
+moves.append( mvMatrixElementScale(bd, lambda = 0.01, weight=fossil_taxa.size()/100))
+moves.append( mvMatrixElementScale(bd, lambda = 0.1, weight=fossil_taxa.size()/100))
+moves.append( mvMatrixElementScale(bd, lambda = 1, weight=fossil_taxa.size()/100))
+
+moves.append( mvMatrixElementSlide(bd, delta = 0.01, weight=fossil_taxa.size()/100))
+moves.append( mvMatrixElementSlide(bd, delta = 0.1, weight=fossil_taxa.size()/100))
+moves.append( mvMatrixElementSlide(bd, delta = 1, weight=fossil_taxa.size()/100))
 
 mymodel = model(bd)
 
@@ -87,7 +102,7 @@ monitors.append( mnScreen(printgen = 1000000) )
 mymcmc = mcmc(mymodel, monitors, moves)
 
 # Run the MCMC #
-mymcmc.run(generations=100)
+mymcmc.run(generations=5000000)
 
 # Quit RevBayes #
 q()

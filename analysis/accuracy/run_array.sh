@@ -1,6 +1,6 @@
 #!/bin/sh
 
-for j in `seq 63 63`
+for j in `seq 1 63`
 do
   for i in `seq 1 100`
   do

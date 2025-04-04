@@ -20,11 +20,12 @@ library(ape)
 # ggplot
 library(ggplot2)
 
+
 ###
 # set parameters for accuracy simulations
 
 # speciation
-lambda<- list(0.3, 
+lambda <- list(0.3, 
               c(0.1, 0.2, 0.4),
               c(0.1, 0.4),
               c(0.4, 0.2, 0.1),
@@ -37,7 +38,7 @@ mu <- list(0.1,
            c(0.05, 0.1, 0.2),
            c(0.05, 0.2),
            c(0.2, 0.1, 0.05), 
-           c(0.05, 0.2),
+           c(0.2, 0.05),
            c(0.05, 0.2, 0.05),
            c(0.2, 0.05, 0.2))
 
@@ -163,7 +164,7 @@ simulate_rep <- function(rates, age, shifts, bins,
   # shifts
   lShifts <- shifts[[1]]
   mShifts <- shifts[[2]]
-  pShifts <- shifts[[2]]
+  pShifts <- shifts[[3]]
   
   # nFinal based on coverage
   nFinal <- ifelse(coverage, 5, 10)
@@ -486,6 +487,29 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
     write.table(t(bins[-c(1, length(bins))]), 
                 paste0(base_dir, "times.tsv"),
                 col.names = FALSE, row.names = FALSE, quote = FALSE, sep = "\t")
+    
+    # get highest number of rates for this set
+    max_len <- max(unlist(lapply(1:length(rates), 
+                                 function(x) length(rates[[x]]))))
+    
+    # get make true rates by expanding rates that are not of len max_len
+    true_rates <- lapply(1:length(rates), function(x) {
+      if (length(rates[[x]]) < max_len) {
+        rep(rates[[x]][1], max_len)
+      } else {
+        rates[[x]]
+      }
+    })
+    
+    # name them
+    names(true_rates) <- c("lambda", "mu", "psi")
+    
+    # make it a data frame
+    true_rates <- as.data.frame(true_rates)
+    
+    # write it to file
+    write.table(true_rates, paste0(base_dir, "true_vals.tsv"),
+                col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
   } else {
     # if it is, write true values data frame
     
@@ -624,20 +648,20 @@ simulate_cov <- function(reps, reps_dir) {
 ###
 # run simulations - coverage
 
-# # create reps directory
-# cov_reps_dir <- paste0("/Users/petrucci/Documents/research/skyfbdr_simstudy/",
-#                        "simulation/coverage/")
-# smart_dir_create(cov_reps_dir)
-# 
-# # set number of reps
-# reps <- 1000
-# 
-# # run sims
-# nums_cov <- simulate_cov(reps, cov_reps_dir)
-# 
-# # save nums_cov
-# write.table(nums_cov, paste0("cov_reps_dir", "nums_cov.tsv"),
-#             row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
+# create reps directory
+cov_reps_dir <- paste0("/Users/petrucci/Documents/research/skyfbdr_simstudy/",
+                       "simulation/coverage/")
+smart_dir_create(cov_reps_dir)
+
+# set number of reps
+reps <- 1000
+
+# run sims
+nums_cov <- simulate_cov(reps, cov_reps_dir)
+
+# save nums_cov
+write.table(nums_cov, paste0("cov_reps_dir", "nums_cov.tsv"),
+            row.names = FALSE, col.names = TRUE, quote = FALSE, sep = "\t")
 
 ###
 # run simulations - accuracy
@@ -696,30 +720,29 @@ ggplot(n_sampled_30, aes(x = 1:nrow(n_sampled_30), y = mean,
 
 # ##
 # # plot time for each sim
-# 
-# # create times vector
-# times <- c()
-# 
-# # iterate through all model 3 analyses of 100 gens
-# for (i in 1:63) {
-#   # read times vector
-#   times_set <- read.table(paste0("/Users/petrucci/Documents/research/",
-#                                  "skyfbdr_simstudy/simulation/accuracy/time_", 
-#                                  i, ".tsv"))
-#   
-#   # get the total time for this sim set
-#   times_sum <- sum(times_set)
-# 
-#   # add it to times
-#   times <- c(times, times_sum)
-# }
-# 
-# # get the total times
-# times_total <- 10E6/100 * times / 60 / 60
-# 
-# # add it to n_sampled
-# n_sampled$time <- c(times_total, rep(NA, 4))
-# 
-# ggplot(n_sampled[-c(63:67), ], aes(y = time)) +
-#   geom_histogram() +
-#   theme_bw()
+# create times vector
+times <- c()
+
+# iterate through all model 3 analyses of 100 gens
+for (i in 1:63) {
+  # read times vector
+  times_set <- read.table(paste0("/Users/petrucci/Documents/research/",
+                                 "skyfbdr_simstudy/dont_commit/time_",
+                                 i, ".tsv"))
+
+  # get the total time for this sim set
+  times_sum <- sum(times_set)
+
+  # add it to times
+  times <- c(times, times_sum)
+}
+
+# get the total times
+times_total <- 10E6/100 * times / 60 / 60
+
+# add it to n_sampled
+n_sampled$time <- c(times_total, rep(NA, 4))
+
+ggplot(n_sampled[-c(64:67), ], aes(y = time)) +
+  geom_histogram() +
+  theme_bw()

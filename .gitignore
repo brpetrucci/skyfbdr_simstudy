@@ -1,3 +1,4 @@
 *.DS_Store
 */aux_*.Rev
 *history.txt
+dont_commit
