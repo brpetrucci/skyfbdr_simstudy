@@ -7,13 +7,19 @@
 # model is which model we're in, unc is whether there's uncertainty, 
 # and ext_singles is whether there are extant singletons
 
+# print sim set and rep
+print("Set: " + dir + ", rep: " + rep + ", model: ", model)
+
 # read ranges
 taxa <- readTaxonData("simulation/accuracy/" + dir + "/ranges/taxa_" + rep + ".tsv")
 
 # if model is 1 or 3, there are fossil counts
-if (model == 1 | model == 3) {
+if (model == 3) {
   # read fossil counts data
   k <- readFossilCountsFile("simulation/accuracy/" + dir + "/fossil_counts/k_" + rep + ".tsv",  header = true, taxa = taxa)
+} else if (model == 1) {
+  # read fossil counts data
+  k <- readDataDelimitedFile(file = "simulation/accuracy/" + dir + "/fossil_counts/k_" + rep + ".tsv", header = true, rownames = true)
 } 
 
 # read time intervals
@@ -94,15 +100,25 @@ mymodel = model(bd)
 
 monitors = VectorMonitors()
 
+# output file name
+out_file <- "output/accuracy/" + dir + "/skyfbdr_" + rep + ".log"
+
 # Create a vector of monitors #
-monitors.append( mnModel(filename="output/accuracy/" + dir + "/skyfbdr_" + rep + ".log", printgen=10000) )
+monitors.append( mnModel(filename=out_file, printgen=10000) )
 monitors.append( mnScreen(printgen = 1000000) )
 
 # Initialize the MCMC object #
 mymcmc = mcmc(mymodel, monitors, moves)
 
+# Create stopping rule for ESS #
+stopping_rules[1] = srMinESS(200, file = out_file, freq = 100000)
+
+# Initialize from checkpoint, if necessary #
+#mymcmc.initializeFromCheckpoint("output/accuracy/" + dir + "/skyfbdr_" + rep + ".state")
+
 # Run the MCMC #
-mymcmc.run(generations=5000000)
+mymcmc.run(rules=stopping_rules, checkpointInterval = 10000, checkpointFile = "output/accuracy/" + dir + "/skyfbdr_" + rep + ".state")
+#mymcmc.run(generations=5000000)
 
 # Quit RevBayes #
 q()

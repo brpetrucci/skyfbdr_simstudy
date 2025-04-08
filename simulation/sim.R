@@ -251,9 +251,11 @@ simulate_rep <- function(rates, age, shifts, bins,
       k_nums <- k
     }
     
-    # if model is 1 or 2, collapse k into a vector of interval fossil counts
+    # if model is 1 or 2, first k should be interval fossil counts
+    # and other k is just 0
     if (model != 3) {
-      k <- c("t", colSums(k))
+      k[1, ] <- colSums(k)
+      k[2:nrow(k), ] <- 0
       
       # name k
       names(k) <- c("taxon", paste0("int_", 1:(length(bins) - 1)))

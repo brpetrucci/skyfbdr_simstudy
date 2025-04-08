@@ -1,4 +1,4 @@
 *.DS_Store
-*/aux_*.Rev
+*aux_*
 *history.txt
 dont_commit
