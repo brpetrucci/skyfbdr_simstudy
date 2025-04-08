@@ -111,14 +111,15 @@ monitors.append( mnScreen(printgen = 1000000) )
 mymcmc = mcmc(mymodel, monitors, moves)
 
 # Create stopping rule for ESS #
-stopping_rules[1] = srMinESS(200, file = out_file, freq = 100000)
+stopping_rules[1] = srMinESS(300, file = out_file, freq = 100000)
 
 # Initialize from checkpoint, if necessary #
-#mymcmc.initializeFromCheckpoint("output/accuracy/" + dir + "/skyfbdr_" + rep + ".state")
+if ( fileExists("output/accuracy/" + dir + "/skyfbdr_" + rep + ".state") ) {
+  mymcmc.initializeFromCheckpoint("output/accuracy/" + dir + "/skyfbdr_" + rep + ".state")
+}
 
 # Run the MCMC #
 mymcmc.run(rules=stopping_rules, checkpointInterval = 10000, checkpointFile = "output/accuracy/" + dir + "/skyfbdr_" + rep + ".state")
-#mymcmc.run(generations=5000000)
 
 # Quit RevBayes #
 q()

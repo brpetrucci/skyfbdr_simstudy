@@ -1,19 +1,20 @@
 #!/bin/sh
 
-for j in `seq 62 62`
+for j in `seq 1 1`
 do
-  for i in `seq 8 8`
+  for i in `seq 1 1`
   do
-#    start=`gdate +%s.%N`
+    start=`gdate +%s.%N`
 
     printf "rep <- " >> analysis/accuracy/aux_$i.Rev
     echo $i >> analysis/accuracy/aux_$i.Rev
     rb simulation/accuracy/refs/ref_$j.Rev analysis/accuracy/aux_$i.Rev analysis/accuracy/master.Rev
     rm analysis/accuracy/aux_$i.Rev
     
-#    end=`gdate +%s.%N`
+    end=`gdate +%s.%N`
     
-#    elapsed=$(echo "$end - $start" | bc)
+    elapsed=$(echo "$end - $start" | bc)
+    printf "%.9f\n" "$elapsed"
 #    printf "%.9f\n" "$elapsed" >> simulation/accuracy/time_$j.tsv
   done
 done
