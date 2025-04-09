@@ -32,27 +32,27 @@ moves = VectorMoves()
 for (i in 1:n_lambda) {
   lambda_stc[i] ~ dnLognormal(-2, 0.5)
 
-  moves.append( mvScale(lambda_stc[i], lambda = 0.01, weight = 3.0) )
-  moves.append( mvScale(lambda_stc[i], lambda = 0.1, weight = 3.0) )
-  moves.append( mvScale(lambda_stc[i], lambda = 1, weight = 3.0) )
+  moves.append( mvSlice(lambda_stc[i], window = 0.01, weight = 3.0) )
+  moves.append( mvSlice(lambda_stc[i], window = 0.1, weight = 3.0) )
+  moves.append( mvSlice(lambda_stc[i], window = 1, weight = 3.0) )
 }
 
 # set mu_stcs
 for (i in 1:n_mu) {
   mu_stc[i] ~ dnLognormal(-2, 0.5)
   
-  moves.append( mvScale(mu_stc[i], lambda = 0.01, weight = 3.0) )
-  moves.append( mvScale(mu_stc[i], lambda = 0.1, weight = 3.0) )
-  moves.append( mvScale(mu_stc[i], lambda = 1, weight = 3.0) )
+  moves.append( mvSlice(mu_stc[i], window = 0.01, weight = 3.0) )
+  moves.append( mvSlice(mu_stc[i], window = 0.1, weight = 3.0) )
+  moves.append( mvSlice(mu_stc[i], window = 1, weight = 3.0) )
 }
 
 # set psi_stcs
 for (i in 1:n_psi) {
   psi_stc[i] ~ dnExp(1)
  
-  moves.append( mvScale(psi_stc[i], lambda = 0.01, weight = 3.0) )
-  moves.append( mvScale(psi_stc[i], lambda = 0.1, weight = 3.0) )
-  moves.append( mvScale(psi_stc[i], lambda = 1, weight = 3.0) )
+  moves.append( mvSlice(psi_stc[i], window = 0.01, weight = 3.0) )
+  moves.append( mvSlice(psi_stc[i], window = 0.1, weight = 3.0) )
+  moves.append( mvSlice(psi_stc[i], window = 1, weight = 3.0) )
 }
 
 # correct lambda, mu, and psi sizes
