@@ -102,7 +102,7 @@ monitors.append( mnModel(filename=out_file, printgen=10000) )
 monitors.append( mnScreen(printgen = 1000000) )
 
 # Monitor for the bd matrix #
-monitors.append( mnFile(filename = "output/accuracy/" + dir + "/skyfbdr_matrix_" + rep + ".log") )
+monitors.append( mnFile(filename = "output/accuracy/" + dir + "/skyfbdr_matrix_" + rep + ".log", printgen=10000, bd) )
 
 # Initialize the MCMC object #
 mymcmc = mcmc(mymodel, monitors, moves)
