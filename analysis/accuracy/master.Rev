@@ -32,27 +32,21 @@ moves = VectorMoves()
 for (i in 1:n_lambda) {
   lambda_stc[i] ~ dnLognormal(-2, 0.5)
 
-  moves.append( mvSlice(lambda_stc[i], window = 0.01, weight = 3.0) )
-  moves.append( mvSlice(lambda_stc[i], window = 0.1, weight = 3.0) )
-  moves.append( mvSlice(lambda_stc[i], window = 1, weight = 3.0) )
+  moves.append( mvSlice(lambda_stc[i], window = 0.1, weight = 1.0, search_method="stepping_out") )
 }
 
 # set mu_stcs
 for (i in 1:n_mu) {
   mu_stc[i] ~ dnLognormal(-2, 0.5)
   
-  moves.append( mvSlice(mu_stc[i], window = 0.01, weight = 3.0) )
-  moves.append( mvSlice(mu_stc[i], window = 0.1, weight = 3.0) )
-  moves.append( mvSlice(mu_stc[i], window = 1, weight = 3.0) )
+  moves.append( mvSlice(mu_stc[i], window = 0.1, weight = 1.0, search_method="stepping_out") )
 }
 
 # set psi_stcs
 for (i in 1:n_psi) {
   psi_stc[i] ~ dnExp(1)
  
-  moves.append( mvSlice(psi_stc[i], window = 0.01, weight = 3.0) )
-  moves.append( mvSlice(psi_stc[i], window = 0.1, weight = 3.0) )
-  moves.append( mvSlice(psi_stc[i], window = 1, weight = 3.0) )
+  moves.append( mvSlice(psi_stc[i], window = 0.1, weight = 1.0, search_method="stepping_out") )
 }
 
 # correct lambda, mu, and psi sizes
@@ -107,6 +101,9 @@ out_file <- "output/accuracy/" + dir + "/skyfbdr_" + rep + ".log"
 monitors.append( mnModel(filename=out_file, printgen=10000) )
 monitors.append( mnScreen(printgen = 1000000) )
 
+# Monitor for the bd matrix #
+monitors.append( mnFile(filename = "output/accuracy/" + dir + "/skyfbdr_matrix_" + rep + ".log") )
+
 # Initialize the MCMC object #
 mymcmc = mcmc(mymodel, monitors, moves)
 
@@ -115,11 +112,11 @@ stopping_rules[1] = srMinESS(300, file = out_file, freq = 100000)
 
 # Initialize from checkpoint, if necessary #
 if ( fileExists("output/accuracy/" + dir + "/skyfbdr_" + rep + ".state") ) {
-  mymcmc.initializeFromCheckpoint("output/accuracy/" + dir + "/skyfbdr_" + rep + ".state")
+  mymcmc.initializeFromCheckpoint("output/accuracy/" + dir + "/checkpoint/skyfbdr_" + rep + ".state")
 }
 
 # Run the MCMC #
-mymcmc.run(rules=stopping_rules, checkpointInterval = 10000, checkpointFile = "output/accuracy/" + dir + "/skyfbdr_" + rep + ".state")
-
+mymcmc.run(rules=stopping_rules, checkpointInterval = 10000, checkpointFile = "output/accuracy/" + dir + "/checkpoint/skyfbdr_" + rep + ".state")
+	
 # Quit RevBayes #
 q()
