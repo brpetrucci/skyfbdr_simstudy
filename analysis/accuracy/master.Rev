@@ -82,13 +82,13 @@ if (ext_singles) {
   fossil_taxa <- taxa
 } 
 
-moves.append( mvMatrixElementScale(bd, lambda = 0.01, weight=fossil_taxa.size()/100))
-moves.append( mvMatrixElementScale(bd, lambda = 0.1, weight=fossil_taxa.size()/100))
-moves.append( mvMatrixElementScale(bd, lambda = 1, weight=fossil_taxa.size()/100))
+moves.append( mvMatrixElementScale(bd, lambda = 0.01, weight=fossil_taxa.size()/32))
+moves.append( mvMatrixElementScale(bd, lambda = 0.1, weight=fossil_taxa.size()/32))
+moves.append( mvMatrixElementScale(bd, lambda = 1, weight=fossil_taxa.size()/32))
 
-moves.append( mvMatrixElementSlide(bd, delta = 0.01, weight=fossil_taxa.size()/100))
-moves.append( mvMatrixElementSlide(bd, delta = 0.1, weight=fossil_taxa.size()/100))
-moves.append( mvMatrixElementSlide(bd, delta = 1, weight=fossil_taxa.size()/100))
+moves.append( mvMatrixElementSlide(bd, delta = 0.01, weight=fossil_taxa.size()/32))
+moves.append( mvMatrixElementSlide(bd, delta = 0.1, weight=fossil_taxa.size()/32))
+moves.append( mvMatrixElementSlide(bd, delta = 1, weight=fossil_taxa.size()/32))
 
 mymodel = model(bd)
 
@@ -117,6 +117,6 @@ if ( fileExists("output/accuracy/" + dir + "/skyfbdr_" + rep + ".state") ) {
 
 # Run the MCMC #
 mymcmc.run(rules=stopping_rules, checkpointInterval = 10000, checkpointFile = "output/accuracy/" + dir + "/checkpoint/skyfbdr_" + rep + ".state")
-	
+
 # Quit RevBayes #
 q()
