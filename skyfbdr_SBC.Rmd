@@ -1,0 +1,138 @@
+---
+title: "Skyline FBD-range simulation-based calibration checking"
+author: "David Cerny"
+date: "2025-05-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+if (!require("posterior")) {
+  install.packages("posterior", repos = "http://cran.us.r-project.org")
+}
+
+if (!require("SBC")) {
+  devtools::install_github("hyunjimoon/SBC")
+}
+
+library(SBC)
+library(posterior)
+library(gtools)    # mixedsort is essential for matching output to true values!
+library(ggplot2)
+```
+
+Construct an `SBC_results` object following https://github.com/hyunjimoon/SBC/issues/76#issuecomment-1387738734
+
+```{r}
+get.SBC.results.obj <- function(subdir) {
+  # Get paths to the log files and sort them from 1 to 1000:
+  dir <- "~/Grive/Slater_Lab/RevBayes_development/FBDR_gang/skyfbdr_simstudy/"
+  log_pths <- mixedsort(list.files(paste0(dir, subdir, "/coverage"), pattern = "*.log",
+                                   recursive = T, full.names = T))
+  
+  # Read in the log files
+  draws <- Map(\(x) read.table(x, header = T), x = log_pths)
+  # Restore the column names
+  draws <- Map(\(x) {colnames(x) <- gsub("\\.", "\\[", colnames(x)); return(x)}, x = draws)
+  draws <- Map(\(x) {colnames(x) <- gsub("\\[$", "\\]", colnames(x)); return(x)}, x = draws)
+  if ("psi[1]" %in% colnames(draws[[1]])) {
+    cols_to_select <- c("lambda[1]", "lambda[2]", "lambda[3]", "mu[1]", "mu[2]", "mu[3]",
+                        "psi[1]", "psi[2]", "psi[3]")
+  } else {
+    cols_to_select <- c("lambda[1]", "lambda[2]", "lambda[3]", "mu[1]", "mu[2]", "mu[3]")
+  }
+  # Convert the log files to the draws_matrix format
+  draws <- Map(\(x) posterior::as_draws_matrix(x[, cols_to_select]), x = draws)
+
+  # Construct an SBC_results object
+  res_raw <- SBC_results(stats = data.frame(sim_id = 1:length(draws)), fits = draws, 
+                         backend_diagnostics = NULL, default_diagnostics = data.frame(), 
+                         outputs = NULL, messages = NULL, warnings = NULL,
+                         errors = vector("list", length(draws)))
+  return(res_raw)
+}
+```
+
+Next, we will compute the ranks and visualize the results. Note that the `recompute_SBC_statistics()` function automatically checks for sufficient ESS values (tail ESS > 1/2 * maximum rank), and that our simulations are passing this check without issues for models 1 and 2 but not for model 3.
+
+```{r}
+get.SBC.stats <- function(res_raw) {
+  # Get the true values
+  dir <- "~/Grive/Slater_Lab/RevBayes_development/FBDR_gang/skyfbdr_simstudy/"
+  true_vals <- read.table(paste0(dir, "simulation/coverage/true_vals.tsv"), header = T)
+  colnames(true_vals) <- gsub("\\.", "\\[", colnames(true_vals))
+  colnames(true_vals) <- gsub("\\[$", "\\]", colnames(true_vals))
+  if ("psi[1]" %in% colnames(res_raw$fits[[1]])) {
+    cols_to_select <- c("lambda[1]", "lambda[2]", "lambda[3]", "mu[1]", "mu[2]", "mu[3]",
+                        "psi[1]", "psi[2]", "psi[3]")
+  } else {
+    cols_to_select <- c("lambda[1]", "lambda[2]", "lambda[3]", "mu[1]", "mu[2]", "mu[3]")
+  }
+  true_vals <- posterior::as_draws_matrix(true_vals[, cols_to_select])
+  
+  # Get the SBC statistics (ranks, ESS values, etc.)
+  datasets <- SBC_datasets(true_vals, generated = vector("list", length(res_raw$fits)))
+  res <- recompute_SBC_statistics(res_raw, datasets, backend = NULL)
+  
+  return(res)
+}
+
+get.visualizations <- function(res) {
+  # We will extract the paths to which the SVGs should be printed from the names of the draws
+  basepath <- dirname(names(res$fits)[1])
+  outdir <- paste(head(strsplit(basepath, "/")[[1]], -1), collapse = "/")
+  prefix <- gsub("output_", "", tail(strsplit(basepath, "/")[[1]], 2)[1])
+  
+  print("Printing the rank histogram...")
+  svg(paste0(outdir, "/", ifelse(prefix == "", "rank_hist.svg",
+                                 paste0(prefix, "_rank_hist.svg"))),
+      width = 10, height = 6)
+    p <- plot_rank_hist(res)
+    print(p)
+  dev.off()
+  
+  print("Printing the ECDF plot...")
+  svg(paste0(outdir, "/", ifelse(prefix == "", "ecdf.svg",
+                                 paste0(prefix, "_ecdf.svg"))),
+      width = 10, height = 6)
+    p <- plot_ecdf(res) + theme(legend.position = "bottom")
+    print(p)
+  dev.off()
+  
+  print("Printing the ECDF difference plot...")
+  svg(paste0(outdir, "/", ifelse(prefix == "", "ecdf_diff.svg",
+                                 paste0(prefix, "_ecdf_diff.svg"))),
+      width = 10, height = 6)
+    p <- plot_ecdf_diff(res) + theme(legend.position = "bottom")
+    print(p)
+  dev.off()
+  
+  print("Printing the plot of true vs. estimated values...")
+  svg(paste0(outdir, "/", ifelse(prefix == "", "true_vs_est.svg",
+                                 paste0(prefix, "_true_vs_est.svg"))),
+      width = 10, height = 6)
+    p <- plot_sim_estimated(res, alpha = 0.5)
+    print(p)
+  dev.off()
+  
+  print("Printing the coverage plot...")
+  svg(paste0(outdir, "/", ifelse(prefix == "", "coverage.svg",
+                                 paste0(prefix, "_coverage.svg"))),
+      width = 10, height = 6)
+    p <- plot_coverage(res)
+    print(p)
+  dev.off()
+}
+```
+
+Run the functions above on all 3 scenarios explored so far:
+
+```{r}
+# Sampling model 3
+get.SBC.results.obj("output") |> get.SBC.stats() |> get.visualizations()
+
+# Sampling model 3 with fossil sampling rates fixed to their true values
+get.SBC.results.obj("output_fixed_psi") |> get.SBC.stats() |> get.visualizations()
+
+# Sampling model 2
+get.SBC.results.obj("output_m2") |> get.SBC.stats() |> get.visualizations()
+```
