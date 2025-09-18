@@ -14,21 +14,15 @@ moves = VectorMoves()
 for (i in 1:(timeline.size() + 1)) {
   lambda[i] ~ dnLognormal(-2, 0.5)
 
-  moves.append( mvScale(lambda[i], lambda = 0.01, weight = 3.0) )
-  moves.append( mvScale(lambda[i], lambda = 0.1, weight = 3.0) )
-  moves.append( mvScale(lambda[i], lambda = 1, weight = 3.0) )
+  moves.append( mvSlice(lambda[i], window = 0.1, weight = 1, search_method = "stepping_out") )
 
   mu[i] ~ dnLognormal(-2, 0.5)
   
-  moves.append( mvScale(mu[i], lambda = 0.01, weight = 3.0) )
-  moves.append( mvScale(mu[i], lambda = 0.1, weight = 3.0) )
-  moves.append( mvScale(mu[i], lambda = 1, weight = 3.0) )
+  moves.append( mvSlice(mu[i], window = 0.1, weight = 1, search_method = "stepping_out") )
 
   psi[i] ~ dnExp(1)
  
-  moves.append( mvScale(psi[i], lambda = 0.01, weight = 3.0) )
-  moves.append( mvScale(psi[i], lambda = 0.1, weight = 3.0) )
-  moves.append( mvScale(psi[i], lambda = 1, weight = 3.0) )
+  moves.append( mvSlice(psi[i], window = 0.1, weight = 1, search_method = "stepping_out") )
 }
 
 # set rho based on ext_singles
