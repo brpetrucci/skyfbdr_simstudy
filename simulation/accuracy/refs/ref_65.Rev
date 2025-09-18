@@ -1,8 +1,0 @@
-dir <- "m1_unc"
-n_lambda <- 3
-n_mu <- 3
-n_psi <- 3
-age <- 30
-model <- 1
-unc <- TRUE
-ext_singles <- FALSE

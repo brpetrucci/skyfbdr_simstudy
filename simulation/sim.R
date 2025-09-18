@@ -67,11 +67,8 @@ key_extra <- cbind(rbind(c("DT", "C", "C"),
                          c("DT", "UT", "DT"),
                          c("DT", "UT", "DT"),
                          c("DT", "UT", "DT"),
-                         c("DT", "UT", "DT"),
-                         c("DT", "UT", "DT"),
-                         c("DT", "UT", "DT"),
                          c("DT", "UT", "DT")),
-                   rep(30, 10))
+                   rep(30, 7))
 key_extra <- as.data.frame(key_extra)
 colnames(key_extra) <- colnames(key)
 key <- rbind(key, as.data.frame(key_extra))
@@ -84,15 +81,14 @@ key$names <- c(paste0(rep(c("base", "lLI3", "lLI2",
                "_", c(rep(10, 19), rep(20, 19), rep(30, 19))),
                "free", "not_free",
                "stages_5", "stages_2",
-               "no_extant_singles", "yes_extant_singles",
-               "m1_no_unc", "m1_unc", "m2_no_unc", "m2_unc")
+               "low_unc", "high_unc",
+               "m1")
 key <- key[, c(5, 1:4)]
 
 # add booleans to make sim code easier
-key$model <- c(rep(3, 63), 1, 1, 2, 2)
-key$unc <- c(rep(FALSE, 64), TRUE, FALSE, TRUE)
-key$extant_singles <- c(rep(FALSE, 62), TRUE, rep(FALSE, 4))
-key$diff_bins <- c(rep(FALSE, 59), 5, 2, rep(FALSE, 6))
+key$model <- c(rep(2, 63), 1)
+key$unc <- c(rep("mid", 61), "low", "high", "mid")
+key$diff_bins <- c(rep(FALSE, 59), 5, 2, rep(FALSE, 3))
 
 ###
 # write minor auxiliary functions
@@ -138,11 +134,46 @@ colMins <- function(df) {
   return(res)
 }
 
+# making time bins
+make_bins <- function(age, unc) {
+  # find range based on unc
+  range <- switch(unc,
+                  "mid" = {c(age / 6, age / 5)},
+                  "low" = {c(age / 10, age / 8)},
+                  "high" = {c(age / 4, age / 3)})
+  
+  # create bins vector
+  bins <- c(0)
+  
+  # while bins doesn't have age
+  while (!(age %in% bins)) {
+    # if the highest bin is less than the max range, just add age
+    if (max(bins) + range[2] > age) {
+      bins <- c(bins, age)
+    } else {
+      # if not, draw a new bin
+      bin <- runif(1, range[1], range[2])
+      
+      # if max(bins) + bin is higher than age, add age instead
+      if (max(bins) + bin > age) {
+        bins <- c(bins, age)
+      } else {
+        # add to bins
+        bins <- c(bins, max(bins) + bin)
+        
+      }
+    }
+  }
+  
+  # return bins
+  return(bins)
+}
+
 ###
 # write auxiliary simulation functions
 
 # simulate one rep
-simulate_rep <- function(rates, age, shifts, bins,
+simulate_rep <- function(rates, age, shifts,
                          model, unc, extant_singletons,
                          coverage = FALSE) {
   ## set parameters
@@ -169,6 +200,15 @@ simulate_rep <- function(rates, age, shifts, bins,
   # nFinal based on coverage
   nFinal <- ifelse(coverage, 5, 10)
   
+  # get bins
+  if (coverage) {
+    # if coverage, just the shifts (include the final sim time)
+    bins <- c(shifts[[1]], age)
+  } else {
+    # if not, make bins
+    bins <- make_bins(age, unc)
+  }
+  
   ##
   # run simulations
   
@@ -180,24 +220,24 @@ simulate_rep <- function(rates, age, shifts, bins,
     # run BD simulation - make sure we get 10+ species
     sim <- bd.sim(n0, lambda, mu, tMax, 
                   lShifts = lShifts, mShifts = mShifts, nFinal = c(nFinal, Inf))
-    
+
     # run fossil sampling
     fossils <- suppressMessages(sample.clade(sim, psi, tMax, 
-                                             rShifts = pShifts))
+                                             rShifts = pShifts,
+                                             bins = bins,
+                                             returnAll = TRUE))
     
     # make sure at least some species got sampled
     while (length(unique(fossils$Species)) < 1) {
       fossils <- suppressMessages(sample.clade(sim, psi, tMax, 
-                                               rShifts = pShifts))
+                                               rShifts = pShifts,
+                                               bins = bins,
+                                               returnAll = TRUE))
     }
     
-    # start ranges data frame
-    ranges <- data.frame(matrix(nrow = 0,
-                                ncol = ifelse(unc, 5, 3)))
-    # if uncertainty is true, need a column for min and max for FAD and LAD
-    
-    # fossil counts
-    k <- data.frame(matrix(nrow = 0, ncol = (length(bins) - 1)))
+    # start specimens and ranges data frame
+    specimens <- data.frame(matrix(nrow = 0, ncol = 4))
+    ranges <- data.frame(matrix(nrow = 0, ncol = 3))
 
     # loop through species
     for (i in 1:length(unique(fossils$Species))) {
@@ -205,88 +245,58 @@ simulate_rep <- function(rates, age, shifts, bins,
       sp <- unique(fossils$Species)[i]
       
       # get vector of occurrences for that species
-      occs <- fossils$SampT[fossils$Species == sp]
+      occs <- fossils[fossils$Species == sp, -which(colnames(fossils) == "SampT")]
+      
+      # and get true occurrence times
+      true_occs <- fossils[fossils$Species == sp, c("Species", "Extant", "SampT")]
       
       # check if it is extant
       ext_sp <- fossils$Extant[fossils$Species == sp][1]
       
-      # find fad and lad
-      fad <- max(occs)
-      lad <- ifelse(ext_sp, 0, min(occs))
-      
-      # start a vector for k for this species
-      k_sp <- c()
-      
-      # iterate through bins
-      for (j in 1:(length(bins) - 1)) {
-        # add the number of occurrences in this bin to k_sp
-        k_sp <- c(k_sp, sum(occs > bins[j] & occs <= bins[j + 1]))
+      # check model
+      if (model == 1) {
+        # add all occurrences to specimens
+        specimens <- rbind(specimens, occs)
+      } else {
+        # check if there are multiple unique occurrences
+        if (nrow(occs) > 1 && length(unique(occs$MaxT)) > 1) {
+          # add first and last occurrences to specimens
+          specimens <- rbind(specimens, occs[1, ], occs[nrow(occs), ])
+        } else {
+          # add just one occurrence
+          specimens <- rbind(specimens, occs[1, ])
+        }
       }
       
-      # if there is uncertainty, bin FAD and LAD
-      if (unc) {
-        fad_max <- min(bins[bins >= fad])
-        fad_min <- max(bins[bins < fad])
-        
-        lad_max <- min(bins[bins >= lad])
-        lad_min <- max(bins[bins < lad])
-        
-        # add to ranges
-        ranges <- rbind(ranges, c(sp, fad_max, fad_min, lad_max, lad_min))
-      }
-      else {
-        # just add fad and lad to ranges
-        ranges <- rbind(ranges, c(sp, fad, lad))
-      }
+      # get true range
+      range <- c(max(true_occs$SampT),
+                 ifelse(sum(true_occs$Extant) > 0, 0, min(true_occs$SampT)))
       
-      # if model is 3, make k 0s and 1s
-      if (model == 3) {
-        k_sp <- ifelse(k_sp == 0, 0, 1)
-      }
-      
-      # add k_sp to k
-      k <- rbind(k, k_sp)
-      
-      # save just the number part of k
-      k_nums <- k
+      # add to ranges
+      ranges <- rbind(ranges, c(sp, range))
     }
     
-    # if model is 1 or 2, first k should be interval fossil counts
-    # and other k is just 0
-    if (model != 3) {
-      k[1, ] <- colSums(k)
-      k[2:nrow(k), ] <- 0
-      
-      # name k
-      names(k) <- c("taxon", paste0("int_", 1:(length(bins) - 1)))
-    }
-    else {
-      # add taxon names
-      k <- cbind(unique(fossils$Species), k)
-      
-      # name k
-      colnames(k) <- c("taxon", paste0("int_", 1:(length(bins) - 1)))
-    }
+    # reorder and rename columns
+    specimens <- specimens[, c(1, 4, 3, 2)]
+    colnames(specimens) <- c("taxon", "min_age", "max_age", "status")
     
-    # if uncertainty is true, name things differently
-    if (unc) {
-      colnames(ranges) <- c("taxon", "fad_max", "fad_min", "lad_max", "lad_min")
-    }
-    else {
-      colnames(ranges) <- c("taxon", "max_age", "min_age")
-    }
+    # change status column to extant and extinct
+    specimens$status <- c("extinct", "extant")[specimens$status + 1]
     
-    # get the number of species sampled in each interval
-    k_sampled <- colSums(k_nums)
+    # name columns for ranges
+    colnames(ranges) <- c("taxon", "first_age", "last_age")
     
     # conditions (depending if it's a coverage sim or not)
     if (coverage) {
-      cond <- nrow(ranges) >= 5 && nrow(ranges) <= 20
+      # we want to have between 5 and 20 species
+      cond <- length(unique(specimens$taxon)) >= 5 && 
+        length(unique(specimens$taxon)) <= 20
       
       # if cond is false, redraw everything
       if (!cond) {
         # draw age
         age <- runif(1, 5, 15)
+        tMax <- age
         
         # draw rates
         lambda <- rlnorm(3, -2, 0.5)
@@ -301,54 +311,24 @@ simulate_rep <- function(rates, age, shifts, bins,
       }
     }
     else {
-      cond <- nrow(ranges) > 10 &&
-        nrow(ranges) < 500 &&
-        nrow(ranges)/length(sim$TS) < 0.9 &&
-        nrow(ranges)/length(sim$TS) > 0.2 &&
-        all(k_sampled > 0)
+      cond <- length(unique(specimens$taxon)) > 10 &&
+        length(unique(specimens$taxon)) < 500 &&
+        length(unique(specimens$taxon)) / length(sim$TS) < 0.9 &&
+        length(unique(specimens$taxon)) / length(sim$TS) > 0.2
     }
   }
   
   # record true values for cov sims
   true_vals <- c(lambda, mu, psi, age)
   
-  # if extant_singletons is true, add extant singletons, if any
-  if (extant_singletons) {
-    # find which taxa are extant
-    ext <- paste0("t", which(sim$EXTANT))
-    
-    # find which are singletons
-    ext_singles <- ext[!(ext %in% fossils$Species)]
-    
-    # add them to ranges with 0 for every age, if there are any
-    if (length(ext_singles) > 0) {
-      # make a zeros data frame for ranges and k
-      zeros_df_ranges <- data.frame(matrix(0, nrow = length(ext_singles),
-                                           ncol = ncol(ranges) - 1))
-      zeros_df_k <- data.frame(matrix(0, nrow = length(ext_singles),
-                                      ncol = ncol(k) - 1))
-      
-      # add taxa names to them
-      ext_singles_df_ranges <- cbind(ext_singles, zeros_df_ranges)
-      ext_singles_df_k <- cbind(ext_singles, zeros_df_k)
-      
-      # name them
-      colnames(ext_singles_df_ranges) <- colnames(ranges)
-      colnames(ext_singles_df_k) <- colnames(k)
-      
-      # add new columns to data frames
-      ranges <- rbind(ranges, ext_singles_df_ranges)
-      k <- rbind(k, ext_singles_df_k)
-    }
-  }
-  
   # return sim, ranges and k
-  return(list(SIM = sim, RANGES = ranges, K = k, TV = true_vals, BINS = bins))
+  return(list(SIM = sim, SPECIMENS = specimens, RANGES = ranges, 
+              TV = true_vals, BINS = bins))
 }
 
 # simulate one set
 simulate_set <- function(n_key, reps, rates, age, base_dir,
-                         model = 3, unc = FALSE, extant_singletons = FALSE,
+                         model = 2, unc = FALSE, extant_singletons = FALSE,
                          diff_bins = 0, coverage = FALSE) {
   # if it is not a coverage simulation set, can prepare rates as normal
   if (!coverage) {
@@ -365,18 +345,18 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
       
       # make shifts vector
       if (n_stages[i] > 1) { 
-        shifts[[i]] <- seq(0, age, age/n_stages[i])[-(n_stages[i] + 1)]
+        shifts[[i]] <- seq(0, age, age / n_stages[i])[-(n_stages[i] + 1)]
       }
     }
     
     # get bins to bin fossil data on
-    bins <- seq(0, age, age/3)
-    if (max(n_stages) == 2) bins <- seq(0, age, age/2)
+    bins <- seq(0, age, age / 3)
+    if (max(n_stages) == 2) bins <- seq(0, age, age / 2)
     
     # if we're on the case where we need different bins
     if (diff_bins) {
       # set those bins
-      bins <- seq(0, age, age/diff_bins)
+      bins <- seq(0, age, age / diff_bins)
     }
   }
   
@@ -389,8 +369,8 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
   sims <- vector("list", reps)
   
   # create seeds - reps*100 apart to ensure a lot of possible seeds
-  if (coverage) seeds <- runif(reps, 0, 69*reps*100) else 
-    seeds <- runif(reps, (n_key - 1)*reps*100, n_key*reps*100)
+  if (coverage) seeds <- runif(reps, 0, 69 * reps * 100) else 
+    seeds <- runif(reps, (n_key - 1) * reps * 100, n_key * reps * 100)
   
   # save seeds
   save(seeds, file = paste0(base_dir, "seeds.RData"))
@@ -423,14 +403,11 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
                     psi = psi)
       
       # shifts list
-      shifts <- rep(list(seq(0, age, age/3)[-4]), 3)
-      
-      # bins
-      bins <- c(shifts[[1]], age)
+      shifts <- rep(list(seq(0, age, age / 3)[-4]), 3)
     }
     
     # run sim
-    sim_rep <- simulate_rep(rates, age, shifts, bins, 
+    sim_rep <- simulate_rep(rates, age, shifts, 
                             model = model, unc = unc, 
                             extant_singletons = extant_singletons,
                             coverage = coverage)
@@ -444,36 +421,31 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
       smart_dir_create(paste0(base_dir, "/times"))
       write.table(t(bins[-c(1, length(bins))]), 
                   paste0(base_dir, "/times/times_", rep, ".tsv"),
-                  col.names = FALSE, row.names = FALSE, quote = FALSE, sep = "\t")
+                  col.names = FALSE, row.names = FALSE, 
+                  quote = FALSE, sep = "\t")
       
       # add true values to true_vals
       true_vals <- rbind(true_vals, sim_rep$TV)
     }
     
-    # get sim and samples
+    # get sim, specimens and ranges
     sim <- sim_rep$SIM
+    specimens <- sim_rep$SPECIMENS
     ranges <- sim_rep$RANGES
-    k <- sim_rep$K
-    
+
     # calculate numbers of interest
     n_sp <- c(n_sp, length(sim$TS))
-    if (extant_singletons) {
-      ranges_fs <- ranges[ranges$max_age != 0 | ranges$min_age != 0, ]
-      n_sampled <- c(n_sampled, length(unique(ranges_fs$taxon)))
-    } else {
-      n_sampled <- c(n_sampled, length(unique(ranges$taxon)))
-    }
+    n_sampled <- c(n_sampled, length(unique(specimens$taxon)))
     perc_sampled <- c(perc_sampled, n_sampled[rep]/n_sp[rep])
     
-    # save ranges
-    smart_dir_create(paste0(base_dir, "/ranges"))
-    write.table(ranges, paste0(base_dir, "ranges/taxa_", rep, ".tsv"),
+    # save specimens
+    smart_dir_create(paste0(base_dir, "/specimens"))
+    write.table(specimens, paste0(base_dir, "specimens/taxa_", rep, ".tsv"),
                 col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
     
-    # save k
-    smart_dir_create(paste0(base_dir, "/fossil_counts"))
-    if (!is.data.frame(k)) k <- t(k)
-    write.table(k, paste0(base_dir, "fossil_counts/k_", rep, ".tsv"),
+    # save true ranges
+    smart_dir_create(paste0(base_dir, "/true_ranges"))
+    write.table(ranges, paste0(base_dir, "true_ranges/ranges_", rep, ".tsv"),
                 col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
     
     # append to list of simulations
@@ -516,7 +488,9 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
     # if it is, write true values data frame
     
     # name columns
-    colnames(true_vals) <- c("lambda", "mu", "psi", "age")
+    colnames(true_vals) <- c("lambda1", "lambda2", "lambda3",
+                             "mu1", "mu2", "mu3", 
+                             "psi1", "psi2", "psi3", "age")
     
     # save true_vals
     write.table(true_vals, 
@@ -635,7 +609,7 @@ simulate_acc <- function(key, reps, lambda, mu, psi, reps_dir) {
 simulate_cov <- function(reps, reps_dir) {
   # run simulation set
   nums <- simulate_set("cov", reps, NULL, NULL, reps_dir,
-                       3, FALSE, FALSE, 0, coverage = TRUE)
+                       2, FALSE, FALSE, 0, coverage = TRUE)
   
   # make nums a data frame
   nums <- as.data.frame(nums)
@@ -723,28 +697,28 @@ ggplot(n_sampled_30, aes(x = 1:nrow(n_sampled_30), y = mean,
 # ##
 # # plot time for each sim
 # create times vector
-times <- c()
-
-# iterate through all model 3 analyses of 100 gens
-for (i in 1:63) {
-  # read times vector
-  times_set <- read.table(paste0("/Users/petrucci/Documents/research/",
-                                 "skyfbdr_simstudy/dont_commit/time_",
-                                 i, ".tsv"))
-
-  # get the total time for this sim set
-  times_sum <- sum(times_set)
-
-  # add it to times
-  times <- c(times, times_sum)
-}
-
-# get the total times
-times_total <- 10E6/100 * times / 60 / 60
-
-# add it to n_sampled
-n_sampled$time <- c(times_total, rep(NA, 4))
-
-ggplot(n_sampled[-c(64:67), ], aes(y = time)) +
-  geom_histogram() +
-  theme_bw()
+# times <- c()
+# 
+# # iterate through all model 3 analyses of 100 gens
+# for (i in 1:63) {
+#   # read times vector
+#   times_set <- read.table(paste0("/Users/petrucci/Documents/research/",
+#                                  "skyfbdr_simstudy/dont_commit/time_",
+#                                  i, ".tsv"))
+# 
+#   # get the total time for this sim set
+#   times_sum <- sum(times_set)
+# 
+#   # add it to times
+#   times <- c(times, times_sum)
+# }
+# 
+# # get the total times
+# times_total <- 10E6/10 * times / 60 / 60
+# 
+# # add it to n_sampled
+# n_sampled$time <- c(times_total, rep(NA, 4))
+# 
+# ggplot(n_sampled[-c(64:67), ], aes(y = time)) +
+#   geom_histogram() +
+#   theme_bw()

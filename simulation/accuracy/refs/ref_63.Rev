@@ -1,8 +1,8 @@
-dir <- "yes_extant_singles"
+dir <- "high_unc"
 n_lambda <- 3
 n_mu <- 3
 n_psi <- 3
 age <- 30
-model <- 3
-unc <- FALSE
-ext_singles <- TRUE
+model <- 2
+unc <- high
+ext_singles <- 
