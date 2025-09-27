@@ -1,6 +1,9 @@
 ###
 # Master template for coverage skyline FBDR sim study
 
+# get rep from arguments
+rep <- args[1]
+
 # read ranges
 taxa <- readTaxonData("simulation/coverage/specimens/taxa_" + rep + ".tsv")
 
@@ -51,7 +54,7 @@ monitors.append( mnScreen(printgen = 100000) )
 mymcmc = mcmc(mymodel, monitors, moves)
 
 # Run the MCMC #
-mymcmc.run(generations=5000000)
+mymcmc.run(generations=50000000)
 
 # Quit RevBayes #
 q()
