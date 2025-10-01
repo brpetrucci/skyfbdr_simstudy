@@ -1,6 +1,10 @@
 # for ess
 library(coda)
 
+# for plotting
+library(reshape2)
+library(ggplot2)
+
 # base directory to save on (reps will be names taxa_rep.tsv)
 base_dir <- "/Users/petrucci/Documents/research/skyfbdr_simstudy/"
 
@@ -75,7 +79,7 @@ validate <- function(sim_kind) {
     colnames(log) <- sort(gsub("\\.", "", colnames(log)))
     
     # burnin - 25%
-    log <- log[(nrow(log)/2):nrow(log), ]
+    log <- log[(nrow(log)/10):nrow(log), ]
     
     # get creds, errors, and ess for each variable
     vals <- get_vals(colnames(log), log, trueVals[rep, ], quants)
@@ -98,75 +102,43 @@ validate <- function(sim_kind) {
     ess <- rbind(ess, ess_rep)
   }
   
+  # make creds just one dataframe
+  creds_full <- t(data.frame(lambda1 = colSums(lambda1_creds) / nreps,
+                             lambda2 = colSums(lambda2_creds) / nreps,
+                             lambda3 = colSums(lambda3_creds) / nreps,
+                             mu1 = colSums(mu1_creds) / nreps,
+                             mu2 = colSums(mu2_creds) / nreps,
+                             mu3 = colSums(mu3_creds) / nreps,
+                             psi1 = colSums(psi1_creds) / nreps,
+                             psi2 = colSums(psi2_creds) / nreps,
+                             psi3 = colSums(psi3_creds) / nreps))
+  
+  # make rownames into column
+  creds_full_melted <- melt(creds_full)
+  colnames(creds_full_melted) <- c("rate", "cred_int", "prop_within")
+  
   # check min ESS
-  paste0("Mininum ESS: ", min(ess))
+  print(paste0("Mininum ESS: ", min(ess)))
   
   colnames(errors) <- colnames(ess) <- c("lambda1", "lambda2", "lambda3",
                                          "mu1", "mu2", "mu3",
                                          "psi1", "psi2", "psi3")
   
-  if (sim_kind == "coverage") {
-    plot(quants, colSums(lambda1_creds)/nreps, xlim = c(0, 1), ylim = c(0, 1),
-         main = "lambda1",
-         xlab = "Credible interval", ylab = "Presence of true value")
-    lines(quants, quants)
-
-    plot(quants, colSums(lambda2_creds)/nreps, xlim = c(0, 1), ylim = c(0, 1),
-         main = "lambda2",
-         xlab = "Credible interval", ylab = "Presence of true value")
-    lines(quants, quants)
-    
-    plot(quants, colSums(lambda3_creds)/nreps, xlim = c(0, 1), ylim = c(0, 1),
-         main = "lambda3",
-         xlab = "Credible interval", ylab = "Presence of true value")
-    lines(quants, quants)
-
-    plot(quants, colSums(mu1_creds)/nreps, xlim = c(0, 1), ylim = c(0, 1),
-         main = "mu1",
-         xlab = "Credible interval", ylab = "Presence of true value")
-    lines(quants, quants)
-    
-    plot(quants, colSums(mu2_creds)/nreps, xlim = c(0, 1), ylim = c(0, 1),
-         main = "mu2",
-         xlab = "Credible interval", ylab = "Presence of true value")
-    lines(quants, quants)
-    
-    plot(quants, colSums(mu3_creds)/nreps, xlim = c(0, 1), ylim = c(0, 1),
-         main = "mu3",
-         xlab = "Credible interval", ylab = "Presence of true value")
-    lines(quants, quants)
-    
-    plot(quants, colSums(psi1_creds)/nreps, xlim = c(0, 1), ylim = c(0, 1),
-         main = "psi1",
-         xlab = "Credible interval", ylab = "Presence of true value")
-    lines(quants, quants)
-
-    plot(quants, colSums(psi2_creds)/nreps, xlim = c(0, 1), ylim = c(0, 1),
-         main = "psi2",
-         xlab = "Credible interval", ylab = "Presence of true value")
-    lines(quants, quants)
-
-    plot(quants, colSums(psi3_creds)/nreps, xlim = c(0, 1), ylim = c(0, 1),
-         main = "psi3",
-         xlab = "Credible interval", ylab = "Presence of true value")
-    lines(quants, quants)
-  } else {
-    plot(1:nrow(errors), errors$lambda, ylim = c(-0.1, 1.5),
-         main = paste0("Mean error for lambda"),
-         xlab = "Sim rep", ylab = "Mean absolute error")
-
-    plot(1:nrow(errors), errors$mu, ylim = c(-0.1, 1.5),
-         main = paste0("Mean error for mu"),
-         xlab = "Sim rep", ylab = "Mean absolute error")
-
-    plot(1:nrow(errors), errors$psi, ylim = c(-0.1, 1.5),
-         main = paste0("Mean error for psi"),
-         xlab = "Sim rep", ylab = "Mean absolute error")
-  }
+  # plot
+  plot <- ggplot(creds_full_melted, aes(x = cred_int, 
+                                        y = prop_within, color = rate)) +
+    geom_line() +
+    geom_abline(slope = 1, intercept = 0) +
+    labs(x = "Credible interval width", y = "Truth recovery proportion",
+         color = "Rate") +
+    theme_bw()
   
-  return(list(ESS = ess, ERR = errors))
+  print(plot)
+  
+  return(list(ESS = ess, ERR = errors, CREDS = creds_full))
 }
 
 cov_val <- validate("coverage")
 ess <- cov_val$ESS
 err <- cov_val$ERR
+creds <- cov_val$CREDS

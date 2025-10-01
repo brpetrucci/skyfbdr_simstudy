@@ -1,4 +1,5 @@
 *.DS_Store
 *aux_*
+*jobs*
 *history.txt
 dont_commit

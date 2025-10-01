@@ -23,7 +23,7 @@ for (i in 1:(timeline.size() + 1)) {
   
   moves.append( mvSlice(mu[i], window = 0.1, weight = 1, search_method = "stepping_out") )
 
-  psi[i] ~ dnExp(1)
+  psi[i] ~ dnLognormal(-0.125, 0.5)
  
   moves.append( mvSlice(psi[i], window = 0.1, weight = 1, search_method = "stepping_out") )
 }
@@ -49,6 +49,7 @@ monitors = VectorMonitors()
 # Create a vector of monitors #
 monitors.append( mnModel(filename="output/coverage/skyfbdr_" + rep + ".log", printgen=10000) )
 monitors.append( mnScreen(printgen = 100000) )
+monitors.append( mnFile(filename = "output/coverage/matrix_" + rep + ".log", printgen=10000, bd) )
 
 # Initialize the MCMC object #
 mymcmc = mcmc(mymodel, monitors, moves)

@@ -11,8 +11,8 @@
 # devtools
 library(devtools)
 
-# paleobuddy - loading since I want to include local changes
-load_all()
+# paleobuddy 
+library(paleobuddy)
 
 # ape
 library(ape)
@@ -290,7 +290,7 @@ simulate_rep <- function(rates, age, shifts,
     if (coverage) {
       # we want to have between 5 and 20 species
       cond <- length(unique(specimens$taxon)) >= 5 && 
-        length(unique(specimens$taxon)) <= 20
+        length(unique(specimens$taxon)) <= 50
       
       # if cond is false, redraw everything
       if (!cond) {
@@ -301,7 +301,7 @@ simulate_rep <- function(rates, age, shifts,
         # draw rates
         lambda <- rlnorm(3, -2, 0.5)
         mu <- rlnorm(3, -2, 0.5)
-        psi <- rexp(3, 1)
+        psi <- rlnorm(3, -0.125, 0.5)
         
         # shifts
         lShifts <- mShifts <- pShifts <- seq(0, age, age/3)[-4]
@@ -395,7 +395,7 @@ simulate_set <- function(n_key, reps, rates, age, base_dir,
       # draw rates
       lambda <- rlnorm(3, -2, 0.5)
       mu <- rlnorm(3, -2, 0.5)
-      psi <- rexp(3, 1)
+      psi <- rlnorm(3, -0.125, 0.5)
       
       # make rates list
       rates <- list(lambda = lambda,
