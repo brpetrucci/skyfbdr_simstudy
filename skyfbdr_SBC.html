@@ -362,7 +362,7 @@ calibration checking</h1>
 <pre class="r"><code>get.SBC.results.obj &lt;- function(subdir) {
   # Get paths to the log files and sort them from 1 to 1000:
   dir &lt;- &quot;~/Grive/Slater_Lab/RevBayes_development/FBDR_gang/skyfbdr_simstudy/&quot;
-  log_pths &lt;- mixedsort(list.files(paste0(dir, subdir, &quot;/coverage&quot;), pattern = &quot;*.log&quot;,
+  log_pths &lt;- mixedsort(list.files(paste0(dir, subdir, &quot;/coverage&quot;), pattern = &quot;skyfbdr_.*log&quot;,
                                    recursive = T, full.names = T))
   
   # Read in the log files
@@ -395,8 +395,7 @@ and 2 but not for model 3.</p>
   # Get the true values
   dir &lt;- &quot;~/Grive/Slater_Lab/RevBayes_development/FBDR_gang/skyfbdr_simstudy/&quot;
   true_vals &lt;- read.table(paste0(dir, &quot;simulation/coverage/true_vals.tsv&quot;), header = T)
-  colnames(true_vals) &lt;- gsub(&quot;\\.&quot;, &quot;\\[&quot;, colnames(true_vals))
-  colnames(true_vals) &lt;- gsub(&quot;\\[$&quot;, &quot;\\]&quot;, colnames(true_vals))
+  colnames(true_vals) &lt;- gsub(&quot;(\\D+)(\\d+)$&quot;, &quot;\\1[\\2]&quot;, colnames(true_vals))
   if (&quot;psi[1]&quot; %in% colnames(res_raw$fits[[1]])) {
     cols_to_select &lt;- c(&quot;lambda[1]&quot;, &quot;lambda[2]&quot;, &quot;lambda[3]&quot;, &quot;mu[1]&quot;, &quot;mu[2]&quot;, &quot;mu[3]&quot;,
                         &quot;psi[1]&quot;, &quot;psi[2]&quot;, &quot;psi[3]&quot;)
@@ -461,43 +460,6 @@ get.visualizations &lt;- function(res) {
 <p>Run the functions above on all 3 scenarios explored so far:</p>
 <pre class="r"><code># Sampling model 3
 get.SBC.results.obj(&quot;output&quot;) |&gt; get.SBC.stats() |&gt; get.visualizations()</code></pre>
-<pre><code>##  - 375 (38%) fits had at least one Rhat &gt; 1.01. Largest Rhat was 2.468.</code></pre>
-<pre><code>##  - 65 (6%) fits had tail ESS undefined or less than half of the maximum rank, potentially skewing 
-## the rank statistics. The lowest tail ESS was NA.
-##  If the fits look good otherwise, increasing `thin_ranks` (via recompute_SBC_statistics) 
-## or number of posterior draws (by refitting) might help.</code></pre>
-<pre><code>## Not all diagnostics are OK.
-## You can learn more by inspecting $default_diagnostics, $backend_diagnostics 
-## and/or investigating $outputs/$messages/$warnings for detailed output from the backend.</code></pre>
-<pre><code>## [1] &quot;Printing the rank histogram...&quot;</code></pre>
-<pre><code>## [1] &quot;Printing the ECDF plot...&quot;</code></pre>
-<pre><code>## [1] &quot;Printing the ECDF difference plot...&quot;</code></pre>
-<pre><code>## [1] &quot;Printing the plot of true vs. estimated values...&quot;</code></pre>
-<pre><code>## [1] &quot;Printing the coverage plot...&quot;</code></pre>
-<pre><code>## quartz_off_screen 
-##                 2</code></pre>
-<pre class="r"><code># Sampling model 3 with fossil sampling rates fixed to their true values
-get.SBC.results.obj(&quot;output_fixed_psi&quot;) |&gt; get.SBC.stats() |&gt; get.visualizations()</code></pre>
-<pre><code>## Warning in check_stats(new_stats, datasets, thin_ranks = thin_ranks, ensure_num_ranks_divisor = ensure_num_ranks_divisor, : Ranks were computed from fewer than 50 samples, the SBC checks will have low precision.
-## You may need to increase the number of samples from the backend and make sure that the combination of thinning in the backend, `thin_ranks` and `ensure_num_ranks_divisor` is sensible.
-## Currently thin_ranks = 10, ensure_num_ranks_divisor = 2.</code></pre>
-<pre><code>##  - 422 (42%) fits had at least one Rhat &gt; 1.01. Largest Rhat was 1.055.
-## Not all diagnostics are OK.
-## You can learn more by inspecting $default_diagnostics, $backend_diagnostics 
-## and/or investigating $outputs/$messages/$warnings for detailed output from the backend.</code></pre>
-<pre><code>## [1] &quot;Printing the rank histogram...&quot;</code></pre>
-<pre><code>## [1] &quot;Printing the ECDF plot...&quot;</code></pre>
-<pre><code>## [1] &quot;Printing the ECDF difference plot...&quot;</code></pre>
-<pre><code>## [1] &quot;Printing the plot of true vs. estimated values...&quot;</code></pre>
-<pre><code>## [1] &quot;Printing the coverage plot...&quot;</code></pre>
-<pre><code>## quartz_off_screen 
-##                 2</code></pre>
-<pre class="r"><code># Sampling model 2
-get.SBC.results.obj(&quot;output_m2&quot;) |&gt; get.SBC.stats() |&gt; get.visualizations()</code></pre>
-<pre><code>##  - 210 (21%) fits had at least one Rhat &gt; 1.01. Largest Rhat was 1.034.
-## Not all diagnostics are OK.
-## You can learn more by inspecting $default_diagnostics, $backend_diagnostics 
-## and/or investigating $outputs/$messages/$warnings for detailed output from the backend.</code></pre>
 <pre><code>## [1] &quot;Printing the rank histogram...&quot;</code></pre>
 <pre><code>## [1] &quot;Printing the ECDF plot...&quot;</code></pre>
 <pre><code>## [1] &quot;Printing the ECDF difference plot...&quot;</code></pre>

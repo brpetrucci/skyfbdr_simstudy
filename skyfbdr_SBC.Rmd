@@ -26,7 +26,7 @@ Construct an `SBC_results` object following https://github.com/hyunjimoon/SBC/is
 get.SBC.results.obj <- function(subdir) {
   # Get paths to the log files and sort them from 1 to 1000:
   dir <- "~/Grive/Slater_Lab/RevBayes_development/FBDR_gang/skyfbdr_simstudy/"
-  log_pths <- mixedsort(list.files(paste0(dir, subdir, "/coverage"), pattern = "*.log",
+  log_pths <- mixedsort(list.files(paste0(dir, subdir, "/coverage"), pattern = "skyfbdr_.*log",
                                    recursive = T, full.names = T))
   
   # Read in the log files
@@ -59,8 +59,7 @@ get.SBC.stats <- function(res_raw) {
   # Get the true values
   dir <- "~/Grive/Slater_Lab/RevBayes_development/FBDR_gang/skyfbdr_simstudy/"
   true_vals <- read.table(paste0(dir, "simulation/coverage/true_vals.tsv"), header = T)
-  colnames(true_vals) <- gsub("\\.", "\\[", colnames(true_vals))
-  colnames(true_vals) <- gsub("\\[$", "\\]", colnames(true_vals))
+  colnames(true_vals) <- gsub("(\\D+)(\\d+)$", "\\1[\\2]", colnames(true_vals))
   if ("psi[1]" %in% colnames(res_raw$fits[[1]])) {
     cols_to_select <- c("lambda[1]", "lambda[2]", "lambda[3]", "mu[1]", "mu[2]", "mu[3]",
                         "psi[1]", "psi[2]", "psi[3]")
@@ -129,10 +128,4 @@ Run the functions above on all 3 scenarios explored so far:
 ```{r}
 # Sampling model 3
 get.SBC.results.obj("output") |> get.SBC.stats() |> get.visualizations()
-
-# Sampling model 3 with fossil sampling rates fixed to their true values
-get.SBC.results.obj("output_fixed_psi") |> get.SBC.stats() |> get.visualizations()
-
-# Sampling model 2
-get.SBC.results.obj("output_m2") |> get.SBC.stats() |> get.visualizations()
 ```
